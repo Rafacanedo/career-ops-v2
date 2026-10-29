@@ -1,0 +1,31 @@
+# Python
+__pycache__/
+*.py[oc]
+build/
+dist/
+wheels/
+*.egg-info
+.pytest_cache/
+.venv/
+.env
+*.log
+
+# SQLite
+*.db
+*.db-journal
+*.db-wal
+
+# User local data
+data/
+output/
+reports/
+workspace/
+content/
+config/profile.yml
+*.pdf
+
+# System & IDE
+.gemini/
+.claude/
+.DS_Store
+Thumbs.db

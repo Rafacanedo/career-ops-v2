@@ -1,0 +1,186 @@
+<!DOCTYPE html>
+<html lang="{{LANG}}">
+<head>
+<meta charset="UTF-8">
+<style>
+  :root {
+    --primary: #000000;
+    --text: #111111;
+    --secondary: #666666;
+    --font-family: Arial, Helvetica, sans-serif;
+  }
+  * {
+    box-sizing: border-box;
+    margin: 0;
+    padding: 0;
+  }
+  body {
+    font-family: var(--font-family);
+    color: var(--text);
+    font-size: 10pt;
+    line-height: 1.35;
+    background: white;
+  }
+  @page {
+    margin: 0.25in;
+    size: A4; /* Overridden by generate-pdf.mjs --format flag */
+  }
+  .page {
+    width: 100%;
+    margin: 0 auto;
+    padding: 0;
+  }
+  a {
+    color: var(--primary);
+    text-decoration: none;
+  }
+  .header {
+    margin-bottom: 12px;
+    text-align: center;
+  }
+  h1 {
+    font-size: 20pt;
+    font-weight: bold;
+    color: var(--primary);
+    margin-bottom: 1px;
+    letter-spacing: 0.5px;
+    text-transform: uppercase;
+  }
+  .phone-line {
+    font-size: 10pt;
+    font-weight: bold;
+    margin-bottom: 2px;
+  }
+  .contact-row {
+    font-size: 9.5pt;
+    color: var(--text);
+  }
+  .contact-row span, .contact-row a {
+    margin: 0 4px;
+  }
+  .section {
+    margin-bottom: 12px;
+  }
+  .avoid-break {
+    break-inside: avoid;
+  }
+  .section-title {
+    font-size: 11pt;
+    font-weight: bold;
+    color: var(--primary);
+    text-transform: uppercase;
+    border-bottom: 1.5px solid var(--primary);
+    margin-bottom: 6px;
+    padding-bottom: 2px;
+  }
+  .job {
+    margin-bottom: 10px;
+  }
+  .job-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+    margin-bottom: 1px;
+  }
+  .job-company {
+    font-weight: bold;
+    font-size: 10.5pt;
+  }
+  .job-period {
+    font-size: 9.5pt;
+    font-weight: bold;
+  }
+  .job-role {
+    font-weight: bold;
+    font-style: italic;
+    font-size: 10pt;
+    display: inline-block;
+  }
+  .job-location {
+    font-size: 9.5pt;
+    display: inline-block;
+  }
+  .job-role-line {
+    display: flex;
+    justify-content: space-between;
+    margin-bottom: 3px;
+  }
+  ul {
+    padding-left: 16px;
+  }
+  li {
+    margin-bottom: 3px;
+    text-align: justify;
+  }
+  .edu-item {
+    margin-bottom: 6px;
+  }
+  .edu-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+  }
+  .edu-title {
+    font-weight: bold;
+    font-size: 10pt;
+  }
+  .edu-year {
+    font-size: 9.5pt;
+  }
+  .edu-org {
+    font-size: 9.5pt;
+  }
+  .skills-grid {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    font-size: 9.5pt;
+  }
+  .skill-item {
+    line-height: 1.4;
+  }
+  .skill-category {
+    font-weight: bold;
+    margin-right: 4px;
+  }
+</style>
+</head>
+<body>
+<div class="page">
+  <div class="header">
+    <h1>{{NAME}}</h1>
+    <div class="phone-line">{{PHONE}}</div>
+    <div class="contact-row">
+      <span>{{LOCATION}}</span> | 
+      <span>{{EMAIL}}</span> | 
+      <a href="{{LINKEDIN_URL}}">{{LINKEDIN_DISPLAY}}</a>
+    </div>
+  </div>
+
+  <div class="section">
+    <div class="section-title">{{SECTION_EXPERIENCE}}</div>
+    {{EXPERIENCE}}
+  </div>
+
+  <div class="section avoid-break">
+    <div class="section-title">{{SECTION_PROJECTS}}</div>
+    {{PROJECTS}}
+  </div>
+
+  <div class="section avoid-break">
+    <div class="section-title">{{SECTION_SKILLS}}</div>
+    {{SKILLS}}
+  </div>
+
+  <div class="section avoid-break">
+    <div class="section-title">{{SECTION_LANGUAGES}}</div>
+    {{LANGUAGES}}
+  </div>
+
+  <div class="section avoid-break">
+    <div class="section-title">{{SECTION_EDUCATION}}</div>
+    {{EDUCATION}}
+  </div>
+</div>
+</body>
+</html>

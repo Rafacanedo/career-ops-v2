@@ -1,0 +1,250 @@
+tracked_companies:
+- name: Arco Educação
+  ats: greenhouse
+  token: arcoeducacao
+- name: Artefact
+  ats: greenhouse
+  token: artefactlinkedin
+- name: Banco PAN
+  ats: greenhouse
+  token: bancopan
+- name: Brex
+  ats: greenhouse
+  token: brex
+- name: BTG Pactual
+  ats: greenhouse
+  token: btgpactual
+- name: Buser
+  ats: greenhouse
+  token: buser
+- name: C6 Bank
+  ats: greenhouse
+  token: c6bank
+- name: ClickBus
+  ats: lever
+  token: clickbus
+- name: CloudWalk
+  ats: lever
+  token: cloudwalk
+- name: Conta Simples
+  ats: greenhouse
+  token: contasimples
+- name: Contabilizei
+  ats: lever
+  token: contabilizei
+- name: Cortex
+  ats: lever
+  token: cortex
+- name: Creditas
+  ats: lever
+  token: creditas
+- name: Deel
+  ats: ashby
+  token: deel
+- name: Digibee
+  ats: greenhouse
+  token: digibee
+- name: Dr. Consulta
+  ats: lever
+  token: drconsulta
+- name: EBANX
+  ats: greenhouse
+  token: ebanx
+- name: Enjoei
+  ats: lever
+  token: enjoei
+- name: Factored
+  ats: greenhouse
+  token: factored
+- name: Gringo
+  ats: greenhouse
+  token: gringo
+- name: Hotmart
+  ats: greenhouse
+  token: hotmartcareersbr
+- name: iFood
+  ats: greenhouse
+  token: ifood
+- name: Involves
+  ats: lever
+  token: involves
+- name: isaac
+  ats: greenhouse
+  token: isaac
+- name: Jusbrasil
+  ats: lever
+  token: jusbrasil
+- name: Linkana
+  ats: ashby
+  token: linkana
+- name: Loft
+  ats: lever
+  token: loft
+- name: Loggi
+  ats: greenhouse
+  token: loggi
+- name: MadeiraMadeira
+  ats: greenhouse
+  token: madeiramadeira
+- name: MaxMilhas
+  ats: lever
+  token: maxmilhas
+- name: Mobiauto
+  ats: greenhouse
+  token: mobiauto
+- name: Movile
+  ats: lever
+  token: movile
+- name: Neon
+  ats: greenhouse
+  token: neon
+- name: Nomad
+  ats: greenhouse
+  token: nomad
+- name: Nubank
+  ats: ashby
+  token: nubank
+- name: Olist
+  ats: lever
+  token: olist
+- name: Petlove
+  ats: lever
+  token: petlove
+- name: PicPay
+  ats: lever
+  token: picpay
+- name: Pipefy
+  ats: lever
+  token: pipefy
+- name: Pismo
+  ats: ashby
+  token: pismo
+- name: QuintoAndar
+  ats: greenhouse
+  token: quintoandar
+- name: RD Station
+  ats: lever
+  token: rdstation
+- name: Rock Content
+  ats: lever
+  token: rockcontent
+- name: Solfácil
+  ats: lever
+  token: solfacil
+- name: Stark Bank
+  ats: ashby
+  token: starkbank
+- name: Stone
+  ats: greenhouse
+  token: stone
+- name: Blip (Take Blip)
+  ats: greenhouse
+  token: blip-global
+- name: Tractian
+  ats: lever
+  token: tractian
+- name: VTEX
+  ats: lever
+  token: vtex
+- name: Wellhub
+  ats: greenhouse
+  token: gympass
+- name: Wildlife Studios
+  ats: greenhouse
+  token: wildlifestudios
+- name: XP Inc.
+  ats: greenhouse
+  token: xpinc
+- name: Zup Innovation
+  ats: greenhouse
+  token: zup
+- name: Mercado Livre
+  ats: eightfold
+  token: mercadolibre
+- name: Vale
+  ats: eightfold
+  token: vale
+title_filter:
+  positive:
+  - data
+  - analytics
+  - business intelligence
+  - bi
+  - cientista
+  - engenheiro de dados
+  - inteligência de negócios
+  - machine learning
+  - ai engineer
+  negative:
+  - intern
+  - estagiário
+  - estagiaria
+  - estagio
+  - estágio
+  - counsel
+  - legal
+  - advogado
+  - advogada
+  - jurídico
+  - juridico
+  - tax analyst
+  - contábil
+  - contabil
+  - conciliação
+  - mobile
+  - qa engineer
+  - qa analyst
+  - site reliability
+  - sre
+  - backend kotlin
+  - billing
+  - observability
+  - scrum master
+  - agile coach
+  - crédito imobiliário
+  - credito imobiliario
+  - negócios imobiliários
+  - negocios imobiliarios
+  - esg
+  - pedagógico
+  - pedagógica
+  - pedagogico
+  - pedagogica
+  - educacional
+  - talent management
+  - bizops
+  - inside sales
+  - customer success
+  - copywriter
+  - director
+  - diretor
+  - diretora
+  - head of
+  - vice president
+  - vp
+  - c-level
+  - chief
+location_filter:
+  positive:
+  - brazil
+  - brasil
+  - remote
+  - remoto
+  - latam
+  - latin america
+  - bh
+  - belo horizonte
+  - sp
+  - são paulo
+  - curitiba
+  - porto alegre
+  negative:
+  - casablanca
+  - new york
+  - san francisco
+  - shanghai
+  - colombia
+  - colômbia
+  - mexico
+  - méxico
+  - paris
