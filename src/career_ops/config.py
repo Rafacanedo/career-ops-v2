@@ -9,12 +9,11 @@ from __future__ import annotations
 
 import os
 from pathlib import Path
-from typing import Optional
 
 import yaml
 
 
-def resolve_root(root: Optional[str] = None) -> Path:
+def resolve_root(root: str | None = None) -> Path:
     """
     Resolve the path to the career-ops project root.
 

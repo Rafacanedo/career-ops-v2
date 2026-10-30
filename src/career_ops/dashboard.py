@@ -12,7 +12,7 @@ import json
 import os
 import re
 from collections import Counter
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
 
 import click
@@ -114,7 +114,7 @@ def _build_dashboard_data(root: Path, output_path: Path) -> dict:
     recent = applications[:RECENT_APPLICATION_LIMIT]
 
     return {
-        "generated_at": datetime.now(timezone.utc).isoformat(),
+        "generated_at": datetime.now(UTC).isoformat(),
         "source_file": str(apps_file),
         "summary": {
             "total_applications": len(applications),

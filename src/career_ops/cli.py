@@ -8,8 +8,8 @@ the career-ops project directory (or CAREER_OPS_ROOT env var).
 from __future__ import annotations
 
 import io
-import os
 import sys
+
 import click
 from dotenv import load_dotenv
 
@@ -23,7 +23,6 @@ if sys.platform == "win32":
         pass
 
 from .context import CareerOpsContext, pass_ctx  # noqa: F401 (re-exported)
-
 
 # ---------------------------------------------------------------------------
 # Root group
@@ -48,18 +47,17 @@ def cli(ctx: click.Context, root: str | None) -> None:
 # Subcommand imports
 # ---------------------------------------------------------------------------
 
-from .normalize import normalize_cmd          # noqa: E402
-from .verify import verify_cmd                # noqa: E402
-from .sync_check import sync_check_cmd        # noqa: E402
-from .dedup import dedup_cmd                  # noqa: E402
-from .cv import cv_cmd                       # noqa: E402
-from .export import export_cmd                # noqa: E402
-from .scan_csv import scan_csv_cmd            # noqa: E402
-from .dashboard import dashboard_cmd          # noqa: E402
-from .fetch_cmd import fetch_cmd              # noqa: E402
-from .unapplied import unapplied_cmd          # noqa: E402
-from .tracker import tracker_cmd              # noqa: E402
-
+from .cv import cv_cmd
+from .dashboard import dashboard_cmd
+from .dedup import dedup_cmd
+from .export import export_cmd
+from .fetch_cmd import fetch_cmd
+from .normalize import normalize_cmd
+from .scan_csv import scan_csv_cmd
+from .sync_check import sync_check_cmd
+from .tracker import tracker_cmd
+from .unapplied import unapplied_cmd
+from .verify import verify_cmd
 
 cli.add_command(normalize_cmd, name="normalize")
 cli.add_command(verify_cmd, name="verify")

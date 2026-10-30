@@ -8,7 +8,6 @@ dedup-tracker.mjs, and verify-pipeline.mjs into reusable functions.
 from __future__ import annotations
 
 from pathlib import Path
-from typing import Optional
 
 from .models import AppEntry, TrackerAddition
 from .utils import validate_status
@@ -22,7 +21,7 @@ def _looks_like_score(value: str) -> bool:
     return bool(re.match(r"^\d+\.?\d*/5$", value))
 
 
-def parse_app_line(line: str) -> Optional[AppEntry]:
+def parse_app_line(line: str) -> AppEntry | None:
     """
     Parse a single pipe-delimited row from applications.md.
 
@@ -90,7 +89,7 @@ def read_applications(apps_file: Path) -> tuple[list[str], list[AppEntry]]:
     return lines, entries
 
 
-def parse_tsv_content(content: str, filename: str = "<unknown>") -> Optional[TrackerAddition]:
+def parse_tsv_content(content: str, filename: str = "<unknown>") -> TrackerAddition | None:
     """
     Parse a .tsv file into a TrackerAddition.
 

@@ -1,8 +1,10 @@
-import click
 from pathlib import Path
+
+import click
 
 from .context import CareerOpsContext, pass_ctx
 from .fetcher.orchestrator import FetchOrchestrator
+
 
 @click.command()
 @click.option(

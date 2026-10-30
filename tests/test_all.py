@@ -34,6 +34,9 @@ class TestSyntax:
         "career_ops.cv",
         "career_ops.unapplied",
         "career_ops.tracker",
+        "career_ops.fetch_cmd",
+        "career_ops.fetcher.connectors",
+        "career_ops.fetcher.orchestrator",
     ]
 
     @pytest.mark.parametrize("module", MODULES)
@@ -60,6 +63,7 @@ class TestCliRegistration:
         "cv",
         "unapplied",
         "tracker",
+        "fetch",
     ]
 
     def test_cli_has_all_commands(self):
@@ -88,6 +92,7 @@ class TestGracefulEmptyData:
         ["export"],
         ["unapplied"],
         ["tracker"],
+        ["fetch", "--help"],
     ]
 
     @pytest.mark.parametrize("cmd_args", COMMANDS_OK_ON_EMPTY)

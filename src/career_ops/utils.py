@@ -13,7 +13,6 @@ from __future__ import annotations
 
 import re
 from datetime import datetime
-from typing import Optional
 
 from .config import CANONICAL_STATUSES, STATUS_RANK
 
@@ -121,7 +120,7 @@ def parse_score(raw: str) -> float:
     return float(m.group(1)) if m else 0.0
 
 
-def extract_report_num(report_str: str) -> Optional[int]:
+def extract_report_num(report_str: str) -> int | None:
     """
     Extract the numeric report ID from a markdown link like [142](reports/142-...).
     Returns None if not found.

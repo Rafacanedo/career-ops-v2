@@ -6,7 +6,6 @@ from __future__ import annotations
 
 import csv
 from collections import Counter
-from pathlib import Path
 
 import click
 
@@ -44,14 +43,14 @@ def tracker_cmd(ctx: CareerOpsContext) -> None:
 
     avg_score = (sum(scores) / len(scores)) if scores else 0.0
 
-    click.echo(f"==================================================")
-    click.echo(f"📊 CAREER-OPS PIPELINE SUMMARY (job-tracker.csv)")
-    click.echo(f"==================================================")
+    click.echo("==================================================")
+    click.echo("📊 CAREER-OPS PIPELINE SUMMARY (job-tracker.csv)")
+    click.echo("==================================================")
     click.echo(f"Total de Vagas Registradas: {total_jobs}")
     click.echo(f"Média de Score das Vagas Avaliadas: {avg_score:.2f} / 5.0")
-    click.echo(f"--------------------------------------------------")
+    click.echo("--------------------------------------------------")
     click.echo("📌 Distribuição por Status:")
     for st, count in status_counts.most_common():
         pct = (count / total_jobs * 100) if total_jobs > 0 else 0
         click.echo(f"  • {st:20s}: {count:3d} ({pct:5.1f}%)")
-    click.echo(f"==================================================")
+    click.echo("==================================================")

@@ -3,10 +3,9 @@
 from __future__ import annotations
 
 from pathlib import Path
-import pytest
 
-from career_ops.verify import run_verify
 from career_ops.scan_csv import FIELDNAMES
+from career_ops.verify import run_verify
 
 
 def _write_tracker(root: Path, rows: list[str]) -> Path:

@@ -13,16 +13,14 @@ from __future__ import annotations
 
 import csv
 import io
-import re
 from datetime import date
 from pathlib import Path
-from typing import Optional
 
 import click
 
 from .config import get_job_tracker_file
 from .context import CareerOpsContext, pass_ctx
-from .utils import normalize_url, normalize_company
+from .utils import normalize_company, normalize_url
 
 CODEPAGE = "utf-8-sig"       # UTF-8-BOM so Excel 365 PT-BR opens cleanly
 SEPARATOR = ";"
@@ -67,7 +65,7 @@ def _write_tracker(tracker_path: Path, fieldnames: list[str], rows: list[dict]) 
         if fn not in out_fields:
             out_fields.append(fn)
 
-    with io.open(tracker_path, "w", encoding=CODEPAGE, newline="") as f:
+    with open(tracker_path, "w", encoding=CODEPAGE, newline="") as f:
         writer = csv.DictWriter(
             f,
             fieldnames=out_fields,
@@ -113,17 +111,17 @@ def get_pending_jobs(root: Path) -> list[dict]:
 def update_tracker_row(
     root: Path,
     row_id: str,
-    company: Optional[str] = None,
-    position: Optional[str] = None,
-    jd_path: Optional[str] = None,
-    status: Optional[str] = None,
-    score: Optional[str] = None,
-    archetype: Optional[str] = None,
-    app_date: Optional[str] = None,
-    status_date: Optional[str] = None,
-    notes: Optional[str] = None,
-    report_path: Optional[str] = None,
-    cv_pdf_path: Optional[str] = None,
+    company: str | None = None,
+    position: str | None = None,
+    jd_path: str | None = None,
+    status: str | None = None,
+    score: str | None = None,
+    archetype: str | None = None,
+    app_date: str | None = None,
+    status_date: str | None = None,
+    notes: str | None = None,
+    report_path: str | None = None,
+    cv_pdf_path: str | None = None,
 ) -> bool:
     """Update a specific row in job-tracker.csv by ID or URL."""
     tracker_path = get_job_tracker_file(root)

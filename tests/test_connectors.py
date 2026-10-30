@@ -1,5 +1,8 @@
+from datetime import UTC
 from unittest.mock import MagicMock, patch
-from career_ops.fetcher.connectors import get_connector, InhireConnector
+
+from career_ops.fetcher.connectors import InhireConnector, get_connector
+
 
 def test_get_connector_inhire():
     connector = get_connector("inhire")
@@ -25,8 +28,8 @@ def test_inhire_connector_fetch_jobs_success(mock_safe_get):
     mock_safe_get.assert_called_once_with("https://api.inhire.app/job-posts/public/pages/c7f46744-ea3e-47c2-8c1b-e76175350a05", silent_404=True)
 
 def test_fetch_orchestrator_filtering(tmp_path):
-    from career_ops.fetcher.orchestrator import FetchOrchestrator
     from career_ops.fetcher.models import JobPosting
+    from career_ops.fetcher.orchestrator import FetchOrchestrator
 
     config_file = tmp_path / "portals.yml"
     config_file.write_text("""
@@ -69,8 +72,9 @@ location_filter:
 
 @patch("career_ops.fetcher.connectors.GupyMCPConnector.call_tool")
 def test_gupy_mcp_connector(mock_call_tool):
-    from career_ops.fetcher.connectors import GupyMCPConnector
     import json
+
+    from career_ops.fetcher.connectors import GupyMCPConnector
 
     mock_call_tool.return_value = json.dumps({
         "data": {
@@ -130,8 +134,9 @@ def test_himalayas_mcp_connector(mock_call_tool):
 
 @patch("career_ops.fetcher.connectors.JobicyMCPConnector.call_tool")
 def test_jobicy_mcp_connector(mock_call_tool):
-    from career_ops.fetcher.connectors import JobicyMCPConnector
     import json
+
+    from career_ops.fetcher.connectors import JobicyMCPConnector
 
     mock_call_tool.return_value = json.dumps({
         "count": 1,
@@ -160,8 +165,9 @@ def test_jobicy_mcp_connector(mock_call_tool):
 
 @patch("career_ops.fetcher.connectors.JobStackMCPConnector.call_tool")
 def test_jobstack_mcp_connector(mock_call_tool):
-    from career_ops.fetcher.connectors import JobStackMCPConnector
     import json
+
+    from career_ops.fetcher.connectors import JobStackMCPConnector
 
     mock_call_tool.return_value = json.dumps({
         "results": [
@@ -217,14 +223,15 @@ def test_workable_connector(mock_post):
 
 @patch("career_ops.fetcher.connectors.GitHubIssuesConnector.safe_get")
 def test_github_issues_connector(mock_safe_get):
+    from datetime import datetime, timedelta
+
     from career_ops.fetcher.connectors import GitHubIssuesConnector
-    from datetime import datetime, timezone, timedelta
 
     connector = get_connector("github")
     assert isinstance(connector, GitHubIssuesConnector)
 
-    now_iso = datetime.now(timezone.utc).isoformat()
-    old_iso = (datetime.now(timezone.utc) - timedelta(days=60)).isoformat()
+    now_iso = datetime.now(UTC).isoformat()
+    old_iso = (datetime.now(UTC) - timedelta(days=60)).isoformat()
 
     mock_resp = MagicMock()
     mock_resp.json.return_value = [
@@ -247,12 +254,56 @@ def test_github_issues_connector(mock_safe_get):
 
     jobs = connector.fetch_jobs({"repo": "backend-br/vagas", "max_days": 14})
 
-    # The 60-day old issue should be filtered out!
     assert len(jobs) == 1
     assert jobs[0].url == "https://github.com/backend-br/vagas/issues/1234"
     assert jobs[0].company == "Nubank"
     assert "Senior Data Engineer" in jobs[0].role
     assert "Databricks" in jobs[0].description
+
+
+def test_fetch_orchestrator_run_creates_jds_and_padded_ids(tmp_path):
+    from career_ops.fetcher.orchestrator import FetchOrchestrator
+    from career_ops.fetcher.models import JobPosting
+
+    config_file = tmp_path / "portals.yml"
+    config_file.write_text("""
+targets:
+  - company_name: MockCo
+    ats_type: greenhouse
+    company_token: mockco
+title_filter:
+  positive:
+    - data
+""", encoding="utf-8")
+
+    orch = FetchOrchestrator(root_dir=tmp_path, config_path=config_file)
+
+    mock_job = JobPosting(
+        url="https://boards.greenhouse.io/mockco/jobs/999",
+        description="Build Python and SQL pipelines.",
+        company="MockCo",
+        role="Data Engineer",
+    )
+
+    with patch("career_ops.fetcher.connectors.GreenhouseConnector.fetch_jobs", return_value=[mock_job]):
+        stats = orch.run()
+
+    assert stats["saved"] == 1
+
+    # Check that workspace/jds/jd_001.md was generated
+    jd_file = tmp_path / "workspace" / "jds" / "jd_001.md"
+    assert jd_file.exists()
+    assert "Build Python and SQL pipelines." in jd_file.read_text(encoding="utf-8")
+
+    # Check job-tracker.csv has 001 and correct columns
+    tracker_file = tmp_path / "workspace" / "job-tracker.csv"
+    assert tracker_file.exists()
+    content = tracker_file.read_text(encoding="utf-8-sig")
+    assert "001" in content
+    assert "MockCo" in content
+    assert "Data Engineer" in content
+    assert "workspace/jds/jd_001.md" in content
+
 
 
 

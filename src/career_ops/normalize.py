@@ -15,13 +15,11 @@ from __future__ import annotations
 import re
 import shutil
 from pathlib import Path
-from typing import Optional
 
 import click
 
 from .config import get_apps_file
-from .context import pass_ctx, CareerOpsContext
-
+from .context import CareerOpsContext, pass_ctx
 
 # ---------------------------------------------------------------------------
 # Normalisation logic

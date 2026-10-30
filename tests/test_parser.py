@@ -2,10 +2,7 @@
 
 from __future__ import annotations
 
-import pytest
-
 from career_ops.parser import parse_app_line, parse_tsv_content, read_applications
-from career_ops.models import AppEntry, TrackerAddition
 
 
 class TestParseAppLine:

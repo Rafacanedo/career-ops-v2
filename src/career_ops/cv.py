@@ -7,8 +7,11 @@ from __future__ import annotations
 import os
 import subprocess
 import sys
+
 import click
-from .context import pass_ctx, CareerOpsContext
+
+from .context import CareerOpsContext, pass_ctx
+
 
 @click.command()
 @click.argument("input_html", type=click.Path(exists=True))

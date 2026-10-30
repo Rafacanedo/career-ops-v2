@@ -1,13 +1,17 @@
-import re
 import csv
 import json
-from typing import List, Set, Dict, Any, Tuple
+import re
+from datetime import date
 from pathlib import Path
+
 import yaml
 
+from career_ops.scan_csv import FIELDNAMES
 from career_ops.utils import normalize_url
-from .connectors import get_connector, MCP_ATS_TYPES, GITHUB_ATS_TYPES
+
+from .connectors import GITHUB_ATS_TYPES, MCP_ATS_TYPES, get_connector
 from .models import JobPosting
+
 
 class FetchOrchestrator:
     def __init__(self, root_dir: Path, config_path: Path, source: str = "all"):
@@ -91,11 +95,11 @@ class FetchOrchestrator:
             "errors": 0
         }
         
-        print(f"Loading dedup sources (applications.md, pipeline.md, job-tracker.csv)...")
+        print("Loading dedup sources (applications.md, pipeline.md, job-tracker.csv)...")
         existing_urls, max_id, fieldnames = self._load_dedup_sources()
         next_id = max_id + 1
         
-        new_postings: List[JobPosting] = []
+        new_postings: list[JobPosting] = []
         new_tracker_rows = []
         
         for target in self.targets:
@@ -154,19 +158,42 @@ class FetchOrchestrator:
                 
                 # For MCP / GitHub / aggregator targets, job.company carries the real employer name
                 resolved_company = (
-                    (job.company or target.get("company_name"))
+                    (job.company or target.get("company_name") or "").strip()
                     if (is_mcp or is_github)
-                    else (target.get("company_name") or job.company)
+                    else (target.get("company_name") or job.company or "").strip()
                 )
+
+                formatted_id = f"{next_id:03d}"
+                today_iso = date.today().isoformat()
+                jd_rel_path = ""
+                if job.description:
+                    jds_dir = self.root_dir / "workspace" / "jds"
+                    try:
+                        jds_dir.mkdir(parents=True, exist_ok=True)
+                        jd_file = jds_dir / f"jd_{formatted_id}.md"
+                        jd_file.write_text(job.description, encoding="utf-8")
+                        jd_rel_path = f"workspace/jds/jd_{formatted_id}.md"
+                    except Exception:
+                        pass
                 
-                # Format row for job-tracker.csv (empty Processing Date so scan-csv can handle)
+                # Format row for job-tracker.csv (supports both 14-col and legacy 6-col schemas)
                 tracker_row = {
-                    "ID": str(next_id),
+                    "ID": formatted_id,
                     "URL": job.url,
-                    "Job Description": job.description or "",
                     "Company": resolved_company,
                     "Position": job.role,
-                    "Processing Date": ""
+                    "Job Description": job.description or "",
+                    "Job Description Path": jd_rel_path,
+                    "Status": "Queued",
+                    "Score": "",
+                    "Archetype": "",
+                    "Added Date": today_iso,
+                    "Application Date": "",
+                    "Status Date": today_iso,
+                    "Notes": "",
+                    "Report Path": "",
+                    "CV PDF Path": "",
+                    "Processing Date": "",
                 }
                 complete_row = {f: tracker_row.get(f, "") for f in fieldnames}
                 new_tracker_rows.append(complete_row)
@@ -194,21 +221,19 @@ class FetchOrchestrator:
             return False
             
         # Title positives (if specified)
-        if self.title_positives:
-            if not any(pos in title_text for pos in self.title_positives):
-                return False
+        if self.title_positives and not any(pos in title_text for pos in self.title_positives):
+            return False
                 
         # Location negatives
-        if self.loc_negatives:
-            if any(neg in full_text for neg in self.loc_negatives):
-                return False
+        if self.loc_negatives and any(neg in full_text for neg in self.loc_negatives):
+            return False
                 
         return True
 
-    def _load_dedup_sources(self) -> Tuple[Set[str], int, List[str]]:
+    def _load_dedup_sources(self) -> tuple[set[str], int, list[str]]:
         urls = set()
         max_id = 0
-        fieldnames = ["ID", "URL", "Job Description", "Company", "Position", "Processing Date"]
+        fieldnames = list(FIELDNAMES)
         
         # 1. job-tracker.csv
         if self.tracker_path.exists():
@@ -223,8 +248,7 @@ class FetchOrchestrator:
                         urls.add(normalize_url(u))
                     try:
                         row_id = int(row.get("ID", 0))
-                        if row_id > max_id:
-                            max_id = row_id
+                        max_id = max(max_id, row_id)
                     except ValueError:
                         pass
                         
@@ -242,7 +266,7 @@ class FetchOrchestrator:
 
         return urls, max_id, fieldnames
 
-    def _append_to_pipeline(self, postings: List[JobPosting]):
+    def _append_to_pipeline(self, postings: list[JobPosting]):
         if not self.pipeline_path.exists():
             return
             
@@ -268,11 +292,11 @@ class FetchOrchestrator:
             parts = content.split(pending_marker)
             new_content = parts[0] + pending_marker + "\n".join(lines_to_add) + "\n" + parts[1].lstrip()
         else:
-            new_content = content + f"\n\n## Pending\n\n" + "\n".join(lines_to_add) + "\n"
+            new_content = content + "\n\n## Pending\n\n" + "\n".join(lines_to_add) + "\n"
             
         self.pipeline_path.write_text(new_content, encoding="utf-8")
         
-    def _append_to_tracker(self, fieldnames: List[str], new_rows: List[dict]):
+    def _append_to_tracker(self, fieldnames: list[str], new_rows: list[dict]):
         if not new_rows:
             return
 

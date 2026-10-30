@@ -12,7 +12,6 @@ CSV format:
 from __future__ import annotations
 
 import csv
-import io
 from pathlib import Path
 
 import click
@@ -41,7 +40,7 @@ def export_applications(root: Path, output_path: Path) -> int:
 
     output_path.parent.mkdir(parents=True, exist_ok=True)
 
-    with io.open(output_path, mode="w", encoding=CODEPAGE, newline="") as f:
+    with open(output_path, mode="w", encoding=CODEPAGE, newline="") as f:
         writer = csv.DictWriter(
             f,
             fieldnames=list(rows[0].keys()),

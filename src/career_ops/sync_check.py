@@ -14,12 +14,12 @@ from __future__ import annotations
 
 import re
 import sys
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
 
 import click
 
-from .context import pass_ctx, CareerOpsContext
+from .context import CareerOpsContext, pass_ctx
 
 # Pattern for hardcoded metrics (numbers followed by units)
 _METRIC_PATTERN = re.compile(
@@ -100,8 +100,8 @@ def run_sync_check(root: Path) -> tuple[list[str], list[str]]:
     # --- Check 4: article-digest.md freshness ---
     digest_path = pick_existing(root / "content" / "article-digest.md", root / "article-digest.md")
     if digest_path.exists():
-        mtime = datetime.fromtimestamp(digest_path.stat().st_mtime, tz=timezone.utc)
-        now = datetime.now(tz=timezone.utc)
+        mtime = datetime.fromtimestamp(digest_path.stat().st_mtime, tz=UTC)
+        now = datetime.now(tz=UTC)
         days_old = (now - mtime).days
         if days_old > 30:
             warnings.append(

@@ -11,17 +11,15 @@ Merges notes (future enhancement).
 
 from __future__ import annotations
 
-import re
 import shutil
-import sys
 from pathlib import Path
 
 import click
 
 from .config import get_apps_file
+from .context import CareerOpsContext, pass_ctx
 from .parser import read_applications
-from .utils import normalize_company, normalize_role, parse_score, get_status_rank
-from .context import pass_ctx, CareerOpsContext
+from .utils import get_status_rank, normalize_company, normalize_role, parse_score
 
 
 def run_dedup(root: Path, dry_run: bool = False) -> int:

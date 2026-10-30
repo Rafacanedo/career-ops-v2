@@ -1,22 +1,36 @@
-import re
 import os
-import requests
+import re
 from abc import ABC, abstractmethod
-from typing import List, Dict, Any, Optional
+from datetime import UTC
+from typing import Any
+
+import requests
+
 from .models import JobPosting
+
 
 class BaseConnector(ABC):
     @abstractmethod
-    def fetch_jobs(self, target: dict) -> List[JobPosting]:
+    def fetch_jobs(self, target: dict) -> list[JobPosting]:
         pass
         
-    def safe_get(self, url: str, params: Optional[dict] = None, silent_404: bool = True) -> Optional[requests.Response]:
+    def safe_get(
+        self,
+        url: str,
+        params: dict | None = None,
+        headers: dict | None = None,
+        silent_404: bool = True,
+        timeout: int = 10,
+    ) -> requests.Response | None:
+        req_headers = {"User-Agent": "CareerOps/2.0 (compatible; Mozilla/5.0)"}
+        if headers:
+            req_headers.update(headers)
         try:
-            resp = requests.get(url, params=params, timeout=10)
+            resp = requests.get(url, params=params, headers=req_headers, timeout=timeout)
             resp.raise_for_status()
             return resp
         except requests.exceptions.HTTPError as http_err:
-            if resp.status_code == 404 and silent_404:
+            if silent_404 and http_err.response is not None and http_err.response.status_code == 404:
                 return None
             return None
         except Exception:
@@ -24,7 +38,7 @@ class BaseConnector(ABC):
 
 
 class GreenhouseConnector(BaseConnector):
-    def fetch_jobs(self, target: dict) -> List[JobPosting]:
+    def fetch_jobs(self, target: dict) -> list[JobPosting]:
         company = target.get('company_token')
         if not company:
             return []
@@ -61,7 +75,7 @@ class GreenhouseConnector(BaseConnector):
 
 
 class LeverConnector(BaseConnector):
-    def fetch_jobs(self, target: dict) -> List[JobPosting]:
+    def fetch_jobs(self, target: dict) -> list[JobPosting]:
         company = target.get('company_token')
         if not company:
             return []
@@ -93,7 +107,7 @@ class LeverConnector(BaseConnector):
 
 
 class AshbyConnector(BaseConnector):
-    def fetch_jobs(self, target: dict) -> List[JobPosting]:
+    def fetch_jobs(self, target: dict) -> list[JobPosting]:
         company = target.get('company_token')
         if not company:
             return []
@@ -124,7 +138,7 @@ class AshbyConnector(BaseConnector):
 
 
 class RecruiteeConnector(BaseConnector):
-    def fetch_jobs(self, target: dict) -> List[JobPosting]:
+    def fetch_jobs(self, target: dict) -> list[JobPosting]:
         company = target.get('company_token')
         if not company:
             return []
@@ -155,7 +169,7 @@ class RecruiteeConnector(BaseConnector):
 
 
 class BreezyConnector(BaseConnector):
-    def fetch_jobs(self, target: dict) -> List[JobPosting]:
+    def fetch_jobs(self, target: dict) -> list[JobPosting]:
         company = target.get('company_token')
         if not company:
             return []
@@ -186,7 +200,7 @@ class BreezyConnector(BaseConnector):
 
 
 class GoogleSearchConnector(BaseConnector):
-    def fetch_jobs(self, target: dict) -> List[JobPosting]:
+    def fetch_jobs(self, target: dict) -> list[JobPosting]:
         api_key = target.get("api_key") or os.environ.get("SEARCHAPI_API_KEY") or os.environ.get("SERPAPI_API_KEY")
         if not api_key:
             return []
@@ -257,7 +271,7 @@ class GoogleSearchConnector(BaseConnector):
 
 
 class InhireConnector(BaseConnector):
-    def fetch_jobs(self, target: dict) -> List[JobPosting]:
+    def fetch_jobs(self, target: dict) -> list[JobPosting]:
         target_val = target.get('job_id') or target.get('url') or target.get('company_token') or ""
         match = re.search(r'[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}', target_val, re.IGNORECASE)
         job_id = match.group(0) if match else target_val
@@ -289,7 +303,7 @@ class InhireConnector(BaseConnector):
 
 
 class EightfoldConnector(BaseConnector):
-    def fetch_jobs(self, target: dict) -> List[JobPosting]:
+    def fetch_jobs(self, target: dict) -> list[JobPosting]:
         company_token = target.get('company_token') or "mercadolibre"
         domain = target.get('domain') or f"{company_token}.com"
         company_name = target.get('company_name') or company_token
@@ -379,7 +393,7 @@ class EightfoldConnector(BaseConnector):
 
 
 class WorkableConnector(BaseConnector):
-    def fetch_jobs(self, target: dict) -> List[JobPosting]:
+    def fetch_jobs(self, target: dict) -> list[JobPosting]:
         company = target.get("company_token")
         company_name = target.get("company_name") or company
         if not company:
@@ -421,7 +435,7 @@ class WorkableConnector(BaseConnector):
 
 
 class SmartRecruitersConnector(BaseConnector):
-    def fetch_jobs(self, target: dict) -> List[JobPosting]:
+    def fetch_jobs(self, target: dict) -> list[JobPosting]:
         company = target.get("company_token")
         company_name = target.get("company_name") or company
         if not company:
@@ -464,7 +478,7 @@ class BaseMCPConnector(BaseConnector):
 
     mcp_url: str = ""
 
-    def call_tool(self, tool_name: str, arguments: dict, timeout: int = 15) -> Optional[str]:
+    def call_tool(self, tool_name: str, arguments: dict, timeout: int = 15) -> str | None:
         import json as _json
 
         if not self.mcp_url:
@@ -513,7 +527,7 @@ class GupyMCPConnector(BaseMCPConnector):
 
     mcp_url = "https://candidates.mcp.api.gupy.io/mcp"
 
-    def fetch_jobs(self, target: dict) -> List[JobPosting]:
+    def fetch_jobs(self, target: dict) -> list[JobPosting]:
         import json as _json
 
         queries = target.get("queries")
@@ -529,11 +543,11 @@ class GupyMCPConnector(BaseMCPConnector):
         limit = int(target.get("limit", 50))
         sort_by = target.get("sort_by") or target.get("sortBy") or "publishedDate"
 
-        postings: List[JobPosting] = []
+        postings: list[JobPosting] = []
         seen_urls = set()
 
         for q in queries:
-            args: Dict[str, Any] = {
+            args: dict[str, Any] = {
                 "term": q,
                 "limit": min(max(limit, 1), 100),
                 "sortBy": sort_by,
@@ -571,8 +585,8 @@ class GupyMCPConnector(BaseMCPConnector):
                     workplace = item.get("workplaceType") or ""
                     job_city = item.get("city") or ""
                     job_state = item.get("state") or ""
-                    salary_info = item.get("salary", {}) or {}
-                    salary_label = salary_info.get("label") or ""
+                    salary_info = item.get("salary")
+                    salary_label = salary_info.get("label", "") if isinstance(salary_info, dict) else ""
 
                     meta_prefix = f"Workplace: {workplace} | Location: {job_city}, {job_state}"
                     if salary_label:
@@ -600,7 +614,7 @@ class HimalayasMCPConnector(BaseMCPConnector):
 
     mcp_url = "https://mcp.himalayas.app/mcp"
 
-    def fetch_jobs(self, target: dict) -> List[JobPosting]:
+    def fetch_jobs(self, target: dict) -> list[JobPosting]:
         queries = target.get("queries")
         if not queries:
             queries = [target.get("query") or target.get("keyword") or "data engineer"]
@@ -610,11 +624,11 @@ class HimalayasMCPConnector(BaseMCPConnector):
         experience = target.get("experience")
         sort = target.get("sort", "recent")
 
-        postings: List[JobPosting] = []
+        postings: list[JobPosting] = []
         seen_urls = set()
 
         for q in queries:
-            args: Dict[str, Any] = {"keyword": q, "sort": sort}
+            args: dict[str, Any] = {"keyword": q, "sort": sort}
             if country:
                 args["country"] = country
             if worldwide is not None:
@@ -635,7 +649,7 @@ class HimalayasMCPConnector(BaseMCPConnector):
                 )
                 if title_match and url_match:
                     title = title_match.group(1).strip()
-                    raw_url = url_match.group(0).split("?")[0]
+                    raw_url = url_match.group(0).split("?")[0].rstrip(".,;)>")
                     if "/jobs/" not in raw_url:
                         continue
                     company = (
@@ -662,7 +676,7 @@ class JobicyMCPConnector(BaseMCPConnector):
 
     mcp_url = "https://jobicy.com/mcp"
 
-    def fetch_jobs(self, target: dict) -> List[JobPosting]:
+    def fetch_jobs(self, target: dict) -> list[JobPosting]:
         import json as _json
 
         queries = target.get("queries")
@@ -673,11 +687,11 @@ class JobicyMCPConnector(BaseMCPConnector):
         industry = target.get("industry")
         limit = int(target.get("limit", 25))
 
-        postings: List[JobPosting] = []
+        postings: list[JobPosting] = []
         seen_urls = set()
 
         for q in queries:
-            args: Dict[str, Any] = {
+            args: dict[str, Any] = {
                 "query": q,
                 "limit": min(max(limit, 1), 50),
             }
@@ -722,7 +736,7 @@ class JobStackMCPConnector(BaseMCPConnector):
 
     mcp_url = "https://jobstack-mcp.vercel.app/mcp"
 
-    def fetch_jobs(self, target: dict) -> List[JobPosting]:
+    def fetch_jobs(self, target: dict) -> list[JobPosting]:
         import json as _json
 
         queries = target.get("queries")
@@ -734,11 +748,11 @@ class JobStackMCPConnector(BaseMCPConnector):
         sources = target.get("sources", "ats,themuse")
         limit = int(target.get("limit", 25))
 
-        postings: List[JobPosting] = []
+        postings: list[JobPosting] = []
         seen_urls = set()
 
         for q in queries:
-            args: Dict[str, Any] = {
+            args: dict[str, Any] = {
                 "keywords": q,
                 "remote": bool(remote),
                 "sources": sources,
@@ -781,17 +795,17 @@ class JobStackMCPConnector(BaseMCPConnector):
 class GitHubIssuesConnector(BaseConnector):
     """Fetches job postings from community GitHub Issues repositories (e.g., backend-br/vagas, datascience-br/vagas)."""
 
-    def fetch_jobs(self, target: dict) -> List[JobPosting]:
+    def fetch_jobs(self, target: dict) -> list[JobPosting]:
         import os
-        from datetime import datetime, timezone
+        from datetime import datetime
 
         repo = target.get("repo") or target.get("company_token")
         if not repo:
             return []
 
         max_days = int(target.get("max_days", 30))
-        now = datetime.now(timezone.utc)
-        postings: List[JobPosting] = []
+        now = datetime.now(UTC)
+        postings: list[JobPosting] = []
 
         url = f"https://api.github.com/repos/{repo}/issues?state=open&sort=created&direction=desc&per_page=50"
         headers = {
@@ -802,7 +816,7 @@ class GitHubIssuesConnector(BaseConnector):
         if gh_token:
             headers["Authorization"] = f"Bearer {gh_token}"
 
-        resp = self.safe_get(url, silent_404=True)
+        resp = self.safe_get(url, headers=headers, silent_404=True)
         if not resp:
             return []
 
@@ -896,7 +910,7 @@ GITHUB_ATS_TYPES = {
 }
 
 
-def get_connector(ats_type: str) -> Optional[BaseConnector]:
+def get_connector(ats_type: str) -> BaseConnector | None:
     connector_class = CONNECTORS.get(ats_type.lower())
     if connector_class:
         return connector_class()

@@ -8,7 +8,6 @@ from pathlib import Path
 
 import pytest
 
-
 SAMPLE_APPLICATIONS_MD = """\
 # Applications Tracker
 

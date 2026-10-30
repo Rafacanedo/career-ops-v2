@@ -4,9 +4,7 @@ from __future__ import annotations
 
 from pathlib import Path
 
-import pytest
-
-from career_ops.normalize import run_normalize, _normalize_status
+from career_ops.normalize import _normalize_status, run_normalize
 
 
 class TestNormalizeStatus:

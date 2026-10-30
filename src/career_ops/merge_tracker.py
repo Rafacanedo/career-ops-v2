@@ -16,16 +16,15 @@ Handles three TSV input formats (9-col, 8-col, pipe-delimited markdown).
 from __future__ import annotations
 
 import shutil
-import subprocess
 import sys
 from pathlib import Path
 
 import click
 
-from .config import get_apps_file, get_additions_dir
-from .parser import read_applications, parse_tsv_content
-from .utils import normalize_company, role_fuzzy_match, parse_score, extract_report_num
-from .context import pass_ctx, CareerOpsContext
+from .config import get_additions_dir, get_apps_file
+from .context import CareerOpsContext, pass_ctx
+from .parser import parse_tsv_content, read_applications
+from .utils import extract_report_num, normalize_company, parse_score, role_fuzzy_match
 
 
 def run_merge(root: Path, dry_run: bool = False, verify_after: bool = False) -> dict:

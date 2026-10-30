@@ -46,7 +46,7 @@ def run_verify(root: Path) -> tuple[int, int]:
         error("job-tracker.csv nao encontrado em workspace/")
         return errors, warnings
 
-    click.echo(f"\n📊 Checking job-tracker.csv integrity...\n")
+    click.echo("\n📊 Checking job-tracker.csv integrity...\n")
 
     rows = []
     with open(tracker_file, "r", encoding="utf-8-sig") as f:

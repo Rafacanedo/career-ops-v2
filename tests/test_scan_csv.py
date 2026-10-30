@@ -2,7 +2,12 @@ from __future__ import annotations
 
 from pathlib import Path
 
-from career_ops.scan_csv import get_pending_jobs, update_tracker_row, add_job_row, FIELDNAMES
+from career_ops.scan_csv import (
+    FIELDNAMES,
+    add_job_row,
+    get_pending_jobs,
+    update_tracker_row,
+)
 
 
 def test_scan_csv_handles_14_column_tracker_rows(root_with_tracker: Path):
