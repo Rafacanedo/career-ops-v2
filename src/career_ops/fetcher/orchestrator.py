@@ -94,14 +94,16 @@ class FetchOrchestrator:
             company_name = target.get("company_name") or target.get("company_token") or target.get("query") or ats_type
             
             is_serp = (ats_type.lower() == "google")
+            if is_serp:
+                # Discard SERP completely: too noisy, dirty and full of expired jobs
+                continue
+
             is_mcp = (ats_type.lower() in MCP_ATS_TYPES)
-            is_ats = not is_serp and not is_mcp
+            is_ats = not is_mcp
             
             if self.source == "ats" and not is_ats:
                 continue
             if self.source == "mcp" and not is_mcp:
-                continue
-            if self.source == "serp" and not is_serp:
                 continue
                 
             print(f"Processing target: {company_name} ({ats_type})")
