@@ -6,7 +6,7 @@ from pathlib import Path
 import yaml
 
 from career_ops.utils import normalize_url
-from .connectors import get_connector
+from .connectors import get_connector, MCP_ATS_TYPES
 from .models import JobPosting
 
 class FetchOrchestrator:
@@ -28,7 +28,7 @@ class FetchOrchestrator:
             else:
                 self.config = json.load(f)
                 
-        # Parse targets (support both 'targets' and 'tracked_companies')
+        # Parse targets (support 'targets', 'tracked_companies', and 'mcp_targets')
         self.targets = []
         if "targets" in self.config:
             self.targets.extend(self.config["targets"])
@@ -44,6 +44,17 @@ class FetchOrchestrator:
                     "company_token": token,
                     "ats_type": ats_type
                 })
+
+        if "mcp_targets" in self.config:
+            for mcp_target in self.config["mcp_targets"]:
+                target_copy = dict(mcp_target)
+                if "ats_type" not in target_copy and "mcp" in target_copy:
+                    target_copy["ats_type"] = target_copy["mcp"]
+                elif "ats_type" not in target_copy and "ats" in target_copy:
+                    target_copy["ats_type"] = target_copy["ats"]
+                if "company_name" not in target_copy and "name" in target_copy:
+                    target_copy["company_name"] = target_copy["name"]
+                self.targets.append(target_copy)
                 
         # Parse title filters
         title_cfg = self.config.get("title_filter", {})
@@ -80,10 +91,15 @@ class FetchOrchestrator:
         
         for target in self.targets:
             ats_type = target.get("ats_type", "greenhouse")
-            company_name = target.get("company_name") or target.get("company_token") or target.get("query")
+            company_name = target.get("company_name") or target.get("company_token") or target.get("query") or ats_type
             
-            is_serp = (ats_type == "google")
-            if self.source == "ats" and is_serp:
+            is_serp = (ats_type.lower() == "google")
+            is_mcp = (ats_type.lower() in MCP_ATS_TYPES)
+            is_ats = not is_serp and not is_mcp
+            
+            if self.source == "ats" and not is_ats:
+                continue
+            if self.source == "mcp" and not is_mcp:
                 continue
             if self.source == "serp" and not is_serp:
                 continue
@@ -122,12 +138,19 @@ class FetchOrchestrator:
                 existing_urls.add(norm_url)
                 new_postings.append(job)
                 
+                # For MCP / aggregator targets, job.company carries the real employer name
+                resolved_company = (
+                    (job.company or target.get("company_name"))
+                    if (is_mcp or is_serp)
+                    else (target.get("company_name") or job.company)
+                )
+                
                 # Format row for job-tracker.csv (empty Processing Date so scan-csv can handle)
                 tracker_row = {
                     "ID": str(next_id),
                     "URL": job.url,
                     "Job Description": job.description or "",
-                    "Company": target.get("company_name") or job.company,
+                    "Company": resolved_company,
                     "Position": job.role,
                     "Processing Date": ""
                 }

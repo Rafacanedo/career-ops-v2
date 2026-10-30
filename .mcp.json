@@ -1,0 +1,24 @@
+{
+  "mcpServers": {
+    "gupy-candidates": {
+      "type": "http",
+      "url": "https://candidates.mcp.api.gupy.io/mcp",
+      "description": "Official Gupy Candidates MCP Server (search_jobs, get_job_by_id, list_companies, get_company_by_id)"
+    },
+    "himalayas-jobs": {
+      "type": "http",
+      "url": "https://mcp.himalayas.app/mcp",
+      "description": "Official Himalayas Remote Jobs MCP Server (search_jobs, get_job_details, search_companies, get_salary_data)"
+    },
+    "jobicy-jobs": {
+      "type": "http",
+      "url": "https://jobicy.com/mcp",
+      "description": "Official Jobicy Remote Jobs MCP Server (search_jobs, get_job, search_companies, get_company_jobs)"
+    },
+    "jobstack-aggregator": {
+      "type": "http",
+      "url": "https://jobstack-mcp.vercel.app/mcp",
+      "description": "JobStack Multi-ATS Aggregator MCP Server (search_jobs, get_job)"
+    }
+  }
+}

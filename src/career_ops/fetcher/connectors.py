@@ -378,20 +378,442 @@ class EightfoldConnector(BaseConnector):
         return postings
 
 
+class WorkableConnector(BaseConnector):
+    def fetch_jobs(self, target: dict) -> List[JobPosting]:
+        company = target.get("company_token")
+        company_name = target.get("company_name") or company
+        if not company:
+            return []
+
+        url = f"https://apply.workable.com/api/v3/accounts/{company}/jobs"
+        try:
+            resp = requests.post(
+                url,
+                json={"query": "", "location": [], "department": [], "worktype": [], "remote": []},
+                timeout=10,
+            )
+            if resp.status_code != 200:
+                return []
+            data = resp.json()
+            results = data.get("results", [])
+            postings = []
+            for job in results:
+                shortcode = job.get("shortcode", "")
+                title = job.get("title", "")
+                if shortcode and title:
+                    job_url = f"https://apply.workable.com/{company}/j/{shortcode}/"
+                    loc = job.get("location", {}) or {}
+                    city = loc.get("city", "")
+                    country = loc.get("country", "")
+                    workplace = job.get("workplace", "")
+                    desc = f"Location: {city}, {country} ({workplace})"
+                    postings.append(
+                        JobPosting(
+                            url=job_url,
+                            description=desc,
+                            company=company_name,
+                            role=title,
+                        )
+                    )
+            return postings
+        except Exception:
+            return []
+
+
+class SmartRecruitersConnector(BaseConnector):
+    def fetch_jobs(self, target: dict) -> List[JobPosting]:
+        company = target.get("company_token")
+        company_name = target.get("company_name") or company
+        if not company:
+            return []
+
+        url = f"https://api.smartrecruiters.com/v1/companies/{company}/postings?limit=100"
+        resp = self.safe_get(url, silent_404=True)
+        if not resp:
+            return []
+
+        try:
+            data = resp.json()
+            content = data.get("content", [])
+            postings = []
+            for job in content:
+                job_id = job.get("id", "")
+                title = job.get("name", "")
+                ref_url = f"https://jobs.smartrecruiters.com/{company}/{job_id}" if job_id else ""
+                loc = job.get("location", {}) or {}
+                city = loc.get("city", "")
+                country = loc.get("country", "")
+                remote = loc.get("remote", False)
+                desc = f"Location: {city}, {country} | Remote: {remote}"
+                if title and ref_url:
+                    postings.append(
+                        JobPosting(
+                            url=ref_url,
+                            description=desc,
+                            company=company.get("name") if isinstance(company, dict) else company_name,
+                            role=title,
+                        )
+                    )
+            return postings
+        except Exception:
+            return []
+
+
+class BaseMCPConnector(BaseConnector):
+    """Base connector for public Streamable HTTP MCP servers (JSON-RPC 2.0)."""
+
+    mcp_url: str = ""
+
+    def call_tool(self, tool_name: str, arguments: dict, timeout: int = 15) -> Optional[str]:
+        import json as _json
+
+        if not self.mcp_url:
+            return None
+        try:
+            resp = requests.post(
+                self.mcp_url,
+                headers={
+                    "Content-Type": "application/json",
+                    "Accept": "application/json, text/event-stream",
+                },
+                json={
+                    "jsonrpc": "2.0",
+                    "id": 1,
+                    "method": "tools/call",
+                    "params": {"name": tool_name, "arguments": arguments},
+                },
+                timeout=timeout,
+            )
+            if resp.status_code != 200:
+                return None
+
+            for line in resp.text.splitlines():
+                raw = (
+                    line[6:].strip()
+                    if line.startswith("data: ")
+                    else (line.strip() if line.strip().startswith("{") else None)
+                )
+                if not raw:
+                    continue
+                try:
+                    payload = _json.loads(raw)
+                    content = payload.get("result", {}).get("content", [])
+                    if content and isinstance(content, list):
+                        return content[0].get("text")
+                except Exception:
+                    continue
+            return None
+        except Exception:
+            return None
+
+
+class GupyMCPConnector(BaseMCPConnector):
+    """Official Gupy Candidates MCP Server (https://candidates.mcp.api.gupy.io/mcp)."""
+
+    mcp_url = "https://candidates.mcp.api.gupy.io/mcp"
+
+    def fetch_jobs(self, target: dict) -> List[JobPosting]:
+        import json as _json
+
+        queries = target.get("queries")
+        if not queries:
+            single_q = target.get("query") or target.get("term") or "Dados"
+            queries = [single_q]
+
+        workplace_types = target.get("workplace_types") or target.get("workplaceTypes")
+        city = target.get("city")
+        state = target.get("state")
+        company_id = target.get("company_id") or target.get("companyId")
+        career_page_name = target.get("career_page_name") or target.get("careerPageName")
+        limit = int(target.get("limit", 50))
+        sort_by = target.get("sort_by") or target.get("sortBy") or "publishedDate"
+
+        postings: List[JobPosting] = []
+        seen_urls = set()
+
+        for q in queries:
+            args: Dict[str, Any] = {
+                "term": q,
+                "limit": min(max(limit, 1), 100),
+                "sortBy": sort_by,
+                "sortOrder": "desc",
+            }
+            if workplace_types:
+                args["workplaceTypes"] = workplace_types
+            if city:
+                args["city"] = city
+            if state:
+                args["state"] = state
+            if company_id:
+                args["companyId"] = int(company_id)
+            if career_page_name:
+                args["careerPageName"] = career_page_name
+
+            text = self.call_tool("search_jobs", args)
+            if not text:
+                continue
+
+            try:
+                parsed = _json.loads(text)
+                jobs_list = parsed.get("data", {}).get("data", [])
+                if not isinstance(jobs_list, list):
+                    jobs_list = parsed.get("jobs", [])
+                for item in jobs_list:
+                    job_url = item.get("jobUrl") or ""
+                    title = item.get("name") or item.get("title") or ""
+                    comp_name = (
+                        item.get("careerPageName")
+                        or target.get("company_name")
+                        or "Gupy Company"
+                    )
+                    desc = item.get("description") or ""
+                    workplace = item.get("workplaceType") or ""
+                    job_city = item.get("city") or ""
+                    job_state = item.get("state") or ""
+                    salary_info = item.get("salary", {}) or {}
+                    salary_label = salary_info.get("label") or ""
+
+                    meta_prefix = f"Workplace: {workplace} | Location: {job_city}, {job_state}"
+                    if salary_label:
+                        meta_prefix += f" | Salary: {salary_label}"
+                    full_desc = f"{meta_prefix}\n\n{desc}".strip()
+
+                    if job_url and title and job_url not in seen_urls:
+                        seen_urls.add(job_url)
+                        postings.append(
+                            JobPosting(
+                                url=job_url,
+                                description=full_desc,
+                                company=comp_name,
+                                role=title,
+                            )
+                        )
+            except Exception:
+                continue
+
+        return postings
+
+
+class HimalayasMCPConnector(BaseMCPConnector):
+    """Official Himalayas Remote Jobs MCP Server (https://mcp.himalayas.app/mcp)."""
+
+    mcp_url = "https://mcp.himalayas.app/mcp"
+
+    def fetch_jobs(self, target: dict) -> List[JobPosting]:
+        queries = target.get("queries")
+        if not queries:
+            queries = [target.get("query") or target.get("keyword") or "data engineer"]
+
+        country = target.get("country")
+        worldwide = target.get("worldwide")
+        experience = target.get("experience")
+        sort = target.get("sort", "recent")
+
+        postings: List[JobPosting] = []
+        seen_urls = set()
+
+        for q in queries:
+            args: Dict[str, Any] = {"keyword": q, "sort": sort}
+            if country:
+                args["country"] = country
+            if worldwide is not None:
+                args["worldwide"] = bool(worldwide)
+            if experience:
+                args["experience"] = experience
+
+            text = self.call_tool("search_jobs", args)
+            if not text:
+                continue
+
+            blocks = re.split(r"\n(?=🚀 \*\*|\*\*)", text)
+            for block in blocks:
+                title_match = re.search(r"\*\*(.+?)\*\*", block)
+                comp_match = re.search(r"🏢\s*([^·\n]+)", block)
+                url_match = re.search(
+                    r"https://himalayas\.app/companies/[^\s\)]+", block
+                )
+                if title_match and url_match:
+                    title = title_match.group(1).strip()
+                    raw_url = url_match.group(0).split("?")[0]
+                    if "/jobs/" not in raw_url:
+                        continue
+                    company = (
+                        comp_match.group(1).strip()
+                        if comp_match
+                        else (target.get("company_name") or "Himalayas Remote")
+                    )
+                    if raw_url not in seen_urls:
+                        seen_urls.add(raw_url)
+                        postings.append(
+                            JobPosting(
+                                url=raw_url,
+                                description=block.strip(),
+                                company=company,
+                                role=title,
+                            )
+                        )
+
+        return postings
+
+
+class JobicyMCPConnector(BaseMCPConnector):
+    """Official Jobicy Remote Jobs MCP Server (https://jobicy.com/mcp)."""
+
+    mcp_url = "https://jobicy.com/mcp"
+
+    def fetch_jobs(self, target: dict) -> List[JobPosting]:
+        import json as _json
+
+        queries = target.get("queries")
+        if not queries:
+            queries = [target.get("query") or "data engineer"]
+
+        geo = target.get("geo")
+        industry = target.get("industry")
+        limit = int(target.get("limit", 25))
+
+        postings: List[JobPosting] = []
+        seen_urls = set()
+
+        for q in queries:
+            args: Dict[str, Any] = {
+                "query": q,
+                "limit": min(max(limit, 1), 50),
+            }
+            if geo:
+                args["geo"] = geo
+            if industry:
+                args["industry"] = industry
+
+            text = self.call_tool("search_jobs", args)
+            if not text:
+                continue
+
+            try:
+                parsed = _json.loads(text)
+                jobs_list = parsed.get("jobs", [])
+                for item in jobs_list:
+                    job_url = item.get("url") or ""
+                    title = item.get("jobTitle") or item.get("title") or ""
+                    company = item.get("companyName") or "Jobicy Remote"
+                    excerpt = item.get("jobExcerpt") or item.get("jobDescription") or ""
+                    job_geo = item.get("jobGeo") or "Remote"
+                    full_desc = f"Geo: {job_geo}\n\n{excerpt}".strip()
+
+                    if job_url and title and job_url not in seen_urls:
+                        seen_urls.add(job_url)
+                        postings.append(
+                            JobPosting(
+                                url=job_url,
+                                description=full_desc,
+                                company=company,
+                                role=title,
+                            )
+                        )
+            except Exception:
+                continue
+
+        return postings
+
+
+class JobStackMCPConnector(BaseMCPConnector):
+    """JobStack Multi-ATS Aggregator MCP Server (https://jobstack-mcp.vercel.app/mcp)."""
+
+    mcp_url = "https://jobstack-mcp.vercel.app/mcp"
+
+    def fetch_jobs(self, target: dict) -> List[JobPosting]:
+        import json as _json
+
+        queries = target.get("queries")
+        if not queries:
+            queries = [target.get("query") or target.get("keywords") or "data engineer"]
+
+        location = target.get("location")
+        remote = target.get("remote", True)
+        sources = target.get("sources", "ats,themuse")
+        limit = int(target.get("limit", 25))
+
+        postings: List[JobPosting] = []
+        seen_urls = set()
+
+        for q in queries:
+            args: Dict[str, Any] = {
+                "keywords": q,
+                "remote": bool(remote),
+                "sources": sources,
+                "limit": min(max(limit, 1), 100),
+            }
+            if location:
+                args["location"] = location
+
+            text = self.call_tool("search_jobs", args)
+            if not text:
+                continue
+
+            try:
+                parsed = _json.loads(text)
+                results = parsed.get("results", [])
+                for item in results:
+                    job_url = item.get("url") or ""
+                    title = item.get("title") or ""
+                    company = item.get("company") or "JobStack"
+                    desc = item.get("description") or ""
+                    loc = item.get("location") or ""
+                    full_desc = f"Location: {loc}\n\n{desc}".strip()
+
+                    if job_url and title and job_url not in seen_urls:
+                        seen_urls.add(job_url)
+                        postings.append(
+                            JobPosting(
+                                url=job_url,
+                                description=full_desc,
+                                company=company,
+                                role=title,
+                            )
+                        )
+            except Exception:
+                continue
+
+        return postings
+
+
 CONNECTORS = {
     "greenhouse": GreenhouseConnector,
     "lever": LeverConnector,
     "ashby": AshbyConnector,
     "recruitee": RecruiteeConnector,
     "breezy": BreezyConnector,
+    "workable": WorkableConnector,
+    "smartrecruiters": SmartRecruitersConnector,
     "google": GoogleSearchConnector,
     "inhire": InhireConnector,
     "eightfold": EightfoldConnector,
+    "gupy": GupyMCPConnector,
+    "gupy_mcp": GupyMCPConnector,
+    "himalayas": HimalayasMCPConnector,
+    "himalayas_mcp": HimalayasMCPConnector,
+    "jobicy": JobicyMCPConnector,
+    "jobicy_mcp": JobicyMCPConnector,
+    "jobstack": JobStackMCPConnector,
+    "jobstack_mcp": JobStackMCPConnector,
 }
+
+MCP_ATS_TYPES = {
+    "gupy",
+    "gupy_mcp",
+    "himalayas",
+    "himalayas_mcp",
+    "jobicy",
+    "jobicy_mcp",
+    "jobstack",
+    "jobstack_mcp",
+}
+
 
 def get_connector(ats_type: str) -> Optional[BaseConnector]:
     connector_class = CONNECTORS.get(ats_type.lower())
     if connector_class:
         return connector_class()
     return None
+
 

@@ -164,6 +164,60 @@ tracked_companies:
 - name: Vale
   ats: eightfold
   token: vale
+- name: Omie
+  ats: workable
+  token: omie
+- name: Sanar
+  ats: workable
+  token: sanar
+- name: Bosch Group
+  ats: smartrecruiters
+  token: BoschGroup
+mcp_targets:
+- name: Gupy (Remoto Brasil)
+  mcp: gupy
+  workplace_types: remote
+  limit: 50
+  queries:
+  - Engenheiro de Dados
+  - Cientista de Dados
+  - Analytics Engineer
+  - AI Engineer
+  - Business Intelligence
+- name: Gupy (Belo Horizonte)
+  mcp: gupy
+  city: Belo Horizonte
+  state: Minas Gerais
+  limit: 50
+  queries:
+  - Dados
+  - Analytics
+  - Inteligência Artificial
+- name: Himalayas (Remote Brazil & Worldwide)
+  mcp: himalayas
+  country: Brazil
+  worldwide: true
+  queries:
+  - Data Engineer
+  - Analytics Engineer
+  - Data Scientist
+  - AI Engineer
+- name: Jobicy (Remote Data & AI)
+  mcp: jobicy
+  limit: 30
+  queries:
+  - data engineer
+  - analytics engineer
+  - ai engineer
+- name: JobStack Aggregator (ATS & TheMuse)
+  mcp: jobstack
+  remote: true
+  sources: ats,themuse
+  limit: 25
+  queries:
+  - Data Engineer
+  - Analytics Engineer
+  - AI Engineer
 title_filter:
   positive:
   - data
