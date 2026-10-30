@@ -218,6 +218,19 @@ mcp_targets:
   - Data Engineer
   - Analytics Engineer
   - AI Engineer
+github_targets:
+- name: Backend Brasil Vagas
+  ats_type: github_issues
+  repo: backend-br/vagas
+  max_days: 14
+- name: PyDevBr Vagas
+  ats_type: github_issues
+  repo: pydevbr/vagas
+  max_days: 30
+- name: Data Science Brasil Vagas
+  ats_type: github_issues
+  repo: datascience-br/vagas
+  max_days: 30
 title_filter:
   positive:
   - data

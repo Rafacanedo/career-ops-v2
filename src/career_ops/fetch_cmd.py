@@ -13,13 +13,13 @@ from .fetcher.orchestrator import FetchOrchestrator
 )
 @click.option(
     "--source",
-    type=click.Choice(["all", "ats", "mcp"]),
+    type=click.Choice(["all", "ats", "mcp", "github"]),
     default="all",
-    help="Which source type to fetch from (all, ats, or mcp). Google SERP is disabled for cleaner results.",
+    help="Which source type to fetch from (all, ats, mcp, or github).",
 )
 @pass_ctx
 def fetch_cmd(ctx: CareerOpsContext, config: Path | None, source: str) -> None:
-    """Fetch job postings via ATS and MCP servers (Google SERP disabled)."""
+    """Fetch job postings via ATS, MCP servers, and GitHub community repos."""
     root = ctx.root
     
     if config is None:

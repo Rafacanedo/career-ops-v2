@@ -215,3 +215,44 @@ def test_workable_connector(mock_post):
     assert jobs[0].url == "https://apply.workable.com/omie/j/ABC1234/"
 
 
+@patch("career_ops.fetcher.connectors.GitHubIssuesConnector.safe_get")
+def test_github_issues_connector(mock_safe_get):
+    from career_ops.fetcher.connectors import GitHubIssuesConnector
+    from datetime import datetime, timezone, timedelta
+
+    connector = get_connector("github")
+    assert isinstance(connector, GitHubIssuesConnector)
+
+    now_iso = datetime.now(timezone.utc).isoformat()
+    old_iso = (datetime.now(timezone.utc) - timedelta(days=60)).isoformat()
+
+    mock_resp = MagicMock()
+    mock_resp.json.return_value = [
+        {
+            "number": 1234,
+            "title": "[Remoto] Senior Data Engineer na Nubank | PJ",
+            "html_url": "https://github.com/backend-br/vagas/issues/1234",
+            "body": "Requisitos: Databricks, Spark, Python",
+            "created_at": now_iso,
+        },
+        {
+            "number": 1200,
+            "title": "[Presencial] Outdated Role na Velha | CLT",
+            "html_url": "https://github.com/backend-br/vagas/issues/1200",
+            "body": "Outdated description",
+            "created_at": old_iso,
+        },
+    ]
+    mock_safe_get.return_value = mock_resp
+
+    jobs = connector.fetch_jobs({"repo": "backend-br/vagas", "max_days": 14})
+
+    # The 60-day old issue should be filtered out!
+    assert len(jobs) == 1
+    assert jobs[0].url == "https://github.com/backend-br/vagas/issues/1234"
+    assert jobs[0].company == "Nubank"
+    assert "Senior Data Engineer" in jobs[0].role
+    assert "Databricks" in jobs[0].description
+
+
+

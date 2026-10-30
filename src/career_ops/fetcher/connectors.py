@@ -475,6 +475,7 @@ class BaseMCPConnector(BaseConnector):
                 headers={
                     "Content-Type": "application/json",
                     "Accept": "application/json, text/event-stream",
+                    "User-Agent": "CareerOps/2.0 (compatible; Mozilla/5.0)",
                 },
                 json={
                     "jsonrpc": "2.0",
@@ -777,6 +778,84 @@ class JobStackMCPConnector(BaseMCPConnector):
         return postings
 
 
+class GitHubIssuesConnector(BaseConnector):
+    """Fetches job postings from community GitHub Issues repositories (e.g., backend-br/vagas, datascience-br/vagas)."""
+
+    def fetch_jobs(self, target: dict) -> List[JobPosting]:
+        import os
+        from datetime import datetime, timezone
+
+        repo = target.get("repo") or target.get("company_token")
+        if not repo:
+            return []
+
+        max_days = int(target.get("max_days", 30))
+        now = datetime.now(timezone.utc)
+        postings: List[JobPosting] = []
+
+        url = f"https://api.github.com/repos/{repo}/issues?state=open&sort=created&direction=desc&per_page=50"
+        headers = {
+            "Accept": "application/vnd.github.v3+json",
+            "User-Agent": "CareerOps/2.0 (compatible; Mozilla/5.0)",
+        }
+        gh_token = os.environ.get("GITHUB_TOKEN")
+        if gh_token:
+            headers["Authorization"] = f"Bearer {gh_token}"
+
+        resp = self.safe_get(url, silent_404=True)
+        if not resp:
+            return []
+
+        try:
+            issues = resp.json()
+            if not isinstance(issues, list):
+                return []
+
+            for issue in issues:
+                if "pull_request" in issue:
+                    continue
+
+                created_at_str = issue.get("created_at")
+                if created_at_str:
+                    created_dt = datetime.fromisoformat(created_at_str.replace("Z", "+00:00"))
+                    days_ago = (now - created_dt).days
+                    if days_ago > max_days:
+                        # Repositories are sorted by created descending; older issues can be stopped early
+                        break
+
+                raw_title = issue.get("title", "").strip()
+                html_url = issue.get("html_url", "")
+                body = issue.get("body", "") or ""
+
+                if not raw_title or not html_url:
+                    continue
+
+                # Detect company name from title if formatted like "... na Empresa", "... @Empresa", etc.
+                company = target.get("company_name") or target.get("name") or repo
+                comp_match = re.search(r'(?:na|no|@|at)\s+([A-Za-z0-9\.\-\_\s]+?)(?:\||\[|\(|$)', raw_title, re.IGNORECASE)
+                if comp_match:
+                    detected_company = comp_match.group(1).strip()
+                    if 1 < len(detected_company) < 40:
+                        company = detected_company
+
+                # Clean role from bracketed tags
+                cleaned_role = re.sub(r'\[.*?\]', '', raw_title).strip()
+                role = cleaned_role if cleaned_role else raw_title
+
+                postings.append(
+                    JobPosting(
+                        url=html_url,
+                        description=body.strip(),
+                        company=company,
+                        role=role,
+                    )
+                )
+
+            return postings
+        except Exception:
+            return []
+
+
 CONNECTORS = {
     "greenhouse": GreenhouseConnector,
     "lever": LeverConnector,
@@ -796,6 +875,8 @@ CONNECTORS = {
     "jobicy_mcp": JobicyMCPConnector,
     "jobstack": JobStackMCPConnector,
     "jobstack_mcp": JobStackMCPConnector,
+    "github": GitHubIssuesConnector,
+    "github_issues": GitHubIssuesConnector,
 }
 
 MCP_ATS_TYPES = {
@@ -807,6 +888,11 @@ MCP_ATS_TYPES = {
     "jobicy_mcp",
     "jobstack",
     "jobstack_mcp",
+}
+
+GITHUB_ATS_TYPES = {
+    "github",
+    "github_issues",
 }
 
 

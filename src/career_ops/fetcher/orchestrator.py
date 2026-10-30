@@ -6,7 +6,7 @@ from pathlib import Path
 import yaml
 
 from career_ops.utils import normalize_url
-from .connectors import get_connector, MCP_ATS_TYPES
+from .connectors import get_connector, MCP_ATS_TYPES, GITHUB_ATS_TYPES
 from .models import JobPosting
 
 class FetchOrchestrator:
@@ -28,7 +28,7 @@ class FetchOrchestrator:
             else:
                 self.config = json.load(f)
                 
-        # Parse targets (support 'targets', 'tracked_companies', and 'mcp_targets')
+        # Parse targets (support 'targets', 'tracked_companies', 'mcp_targets', 'github_targets')
         self.targets = []
         if "targets" in self.config:
             self.targets.extend(self.config["targets"])
@@ -52,6 +52,15 @@ class FetchOrchestrator:
                     target_copy["ats_type"] = target_copy["mcp"]
                 elif "ats_type" not in target_copy and "ats" in target_copy:
                     target_copy["ats_type"] = target_copy["ats"]
+                if "company_name" not in target_copy and "name" in target_copy:
+                    target_copy["company_name"] = target_copy["name"]
+                self.targets.append(target_copy)
+
+        if "github_targets" in self.config:
+            for gh_target in self.config["github_targets"]:
+                target_copy = dict(gh_target)
+                if "ats_type" not in target_copy:
+                    target_copy["ats_type"] = "github_issues"
                 if "company_name" not in target_copy and "name" in target_copy:
                     target_copy["company_name"] = target_copy["name"]
                 self.targets.append(target_copy)
@@ -99,11 +108,14 @@ class FetchOrchestrator:
                 continue
 
             is_mcp = (ats_type.lower() in MCP_ATS_TYPES)
-            is_ats = not is_mcp
+            is_github = (ats_type.lower() in GITHUB_ATS_TYPES)
+            is_ats = not is_mcp and not is_github
             
             if self.source == "ats" and not is_ats:
                 continue
             if self.source == "mcp" and not is_mcp:
+                continue
+            if self.source == "github" and not is_github:
                 continue
                 
             print(f"Processing target: {company_name} ({ats_type})")
@@ -140,10 +152,10 @@ class FetchOrchestrator:
                 existing_urls.add(norm_url)
                 new_postings.append(job)
                 
-                # For MCP / aggregator targets, job.company carries the real employer name
+                # For MCP / GitHub / aggregator targets, job.company carries the real employer name
                 resolved_company = (
                     (job.company or target.get("company_name"))
-                    if (is_mcp or is_serp)
+                    if (is_mcp or is_github)
                     else (target.get("company_name") or job.company)
                 )
                 
