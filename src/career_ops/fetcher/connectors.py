@@ -502,6 +502,8 @@ class BaseMCPConnector(BaseConnector):
             if resp.status_code != 200:
                 return None
 
+            resp.encoding = "utf-8"
+
             for line in resp.text.splitlines():
                 raw = (
                     line[6:].strip()
@@ -917,3 +919,237 @@ def get_connector(ats_type: str) -> BaseConnector | None:
     return None
 
 
+def _extract_html_job_posting(url: str, html_text: str) -> JobPosting | None:
+    """
+    Deterministic Priority-2 fallback: extract JobPosting from Schema.org JSON-LD,
+    OpenGraph meta tags, or standard HTML containers without any LLM calls.
+    """
+    import html as _html
+    import json as _json
+    from urllib.parse import urlparse
+
+    # 1. Try Schema.org JSON-LD (<script type="application/ld+json">)
+    script_blocks = re.findall(
+        r'<script[^>]+type=["\']application/ld\+json["\'][^>]*>(.*?)</script>',
+        html_text,
+        flags=re.IGNORECASE | re.DOTALL,
+    )
+    for raw_json in script_blocks:
+        try:
+            data = _json.loads(raw_json.strip())
+        except Exception:
+            continue
+
+        candidates: list[dict] = []
+        if isinstance(data, dict):
+            if "@graph" in data and isinstance(data["@graph"], list):
+                candidates.extend(x for x in data["@graph"] if isinstance(x, dict))
+            candidates.append(data)
+        elif isinstance(data, list):
+            candidates.extend(x for x in data if isinstance(x, dict))
+
+        for item in candidates:
+            item_type = item.get("@type")
+            is_job = (
+                item_type == "JobPosting"
+                or (isinstance(item_type, list) and "JobPosting" in item_type)
+            )
+            if not is_job:
+                continue
+
+            title = str(item.get("title") or item.get("name") or "").strip()
+            org = item.get("hiringOrganization")
+            company = ""
+            if isinstance(org, dict):
+                company = str(org.get("name") or "").strip()
+            elif isinstance(org, str):
+                company = org.strip()
+
+            description = str(item.get("description") or "").strip()
+            if title:
+                if not company:
+                    hostname = urlparse(url).hostname or "Unknown"
+                    company = hostname.replace("www.", "").split(".")[0].title()
+                return JobPosting(
+                    url=url,
+                    description=_html.unescape(description),
+                    company=company,
+                    role=title,
+                )
+
+    # 2. Fallback to OpenGraph tags and title / article / main body
+    def _meta(prop: str) -> str:
+        m = re.search(
+            rf'<meta[^>]+(?:property|name)=["\']{re.escape(prop)}["\'][^>]+content=["\']([^"\']+)["\']',
+            html_text,
+            flags=re.IGNORECASE,
+        )
+        if not m:
+            m = re.search(
+                rf'<meta[^>]+content=["\']([^"\']+)["\'][^>]+(?:property|name)=["\']{re.escape(prop)}["\']',
+                html_text,
+                flags=re.IGNORECASE,
+            )
+        return _html.unescape(m.group(1).strip()) if m else ""
+
+    title = _meta("og:title")
+    if not title:
+        title_m = re.search(r"<title[^>]*>(.*?)</title>", html_text, re.IGNORECASE | re.DOTALL)
+        if title_m:
+            title = _html.unescape(re.sub(r"\s+", " ", title_m.group(1)).strip())
+
+    company = _meta("og:site_name")
+    if not company:
+        hostname = urlparse(url).hostname or "Unknown"
+        company = hostname.replace("www.", "").split(".")[0].title()
+
+    body_text = _meta("og:description") or _meta("description")
+    container_m = re.search(
+        r"<(?:article|main)[^>]*>(.*?)</(?:article|main)>",
+        html_text,
+        flags=re.IGNORECASE | re.DOTALL,
+    )
+    if container_m:
+        stripped = re.sub(r"<[^>]+>", " ", container_m.group(1))
+        stripped = _html.unescape(re.sub(r"\s+", " ", stripped).strip())
+        if stripped:
+            body_text = stripped
+
+    if title:
+        return JobPosting(
+            url=url,
+            description=body_text,
+            company=company,
+            role=title,
+        )
+    return None
+
+
+def fetch_single_url(url: str) -> tuple[JobPosting | None, str]:
+    """
+    Deterministically fetch a single job posting from an ATS URL or HTML page.
+    Returns (JobPosting | None, source_portal).
+    """
+    base = GreenhouseConnector()
+    lowered = url.lower()
+
+    # 1. Greenhouse single-job endpoint
+    gh_match = re.search(
+        r"(?:boards(?:-api)?\.greenhouse\.io/(?:v1/boards/)?|job-boards\.greenhouse\.io/)([a-zA-Z0-9_-]+)/jobs/(\d+)",
+        url,
+        re.IGNORECASE,
+    )
+    if gh_match:
+        company_token, job_id = gh_match.group(1), gh_match.group(2)
+        api_url = f"https://boards-api.greenhouse.io/v1/boards/{company_token}/jobs/{job_id}?content=true"
+        resp = base.safe_get(api_url, silent_404=True)
+        if resp:
+            try:
+                data = resp.json()
+                title = data.get("title") or ""
+                content = data.get("content") or data.get("description") or ""
+                company = data.get("company_name") or company_token
+                if title:
+                    return (
+                        JobPosting(
+                            url=data.get("absolute_url") or url,
+                            description=content,
+                            company=company,
+                            role=title,
+                        ),
+                        "greenhouse",
+                    )
+            except Exception:
+                pass
+
+    # 2. Lever single-job endpoint
+    lever_match = re.search(
+        r"(?:jobs\.lever\.co|api\.lever\.co/v0/postings)/([a-zA-Z0-9_-]+)/([0-9a-fA-F-]{8,})",
+        url,
+        re.IGNORECASE,
+    )
+    if lever_match:
+        company_token, job_id = lever_match.group(1), lever_match.group(2)
+        api_url = f"https://api.lever.co/v0/postings/{company_token}/{job_id}"
+        resp = base.safe_get(api_url, silent_404=True)
+        if resp:
+            try:
+                data = resp.json()
+                title = data.get("text") or data.get("title") or ""
+                desc = data.get("descriptionPlain") or data.get("description") or ""
+                if title:
+                    return (
+                        JobPosting(
+                            url=data.get("hostedUrl") or url,
+                            description=desc,
+                            company=company_token,
+                            role=title,
+                        ),
+                        "lever",
+                    )
+            except Exception:
+                pass
+
+    # 3. Inhire single-job endpoint
+    if "inhire.app" in lowered:
+        connector = InhireConnector()
+        jobs = connector.fetch_jobs({"url": url})
+        if jobs:
+            return jobs[0], "inhire"
+
+    # 4. Generic HTTP fetch (JSON or HTML/Schema.org fallback)
+    resp = base.safe_get(url, silent_404=True)
+    if resp is not None:
+        # Check if response is JSON directly (e.g. mocked ATS response in tests)
+        try:
+            data = resp.json()
+            if isinstance(data, dict):
+                title = (
+                    data.get("title")
+                    or data.get("text")
+                    or data.get("name")
+                    or data.get("role")
+                    or ""
+                )
+                company = (
+                    data.get("company")
+                    or data.get("company_name")
+                    or (
+                        data.get("hiringOrganization", {}).get("name")
+                        if isinstance(data.get("hiringOrganization"), dict)
+                        else None
+                    )
+                    or "Unknown"
+                )
+                desc = (
+                    data.get("content")
+                    or data.get("descriptionPlain")
+                    or data.get("descriptionHtml")
+                    or data.get("description")
+                    or ""
+                )
+                if title:
+                    portal = "greenhouse" if "greenhouse" in lowered else (
+                        "lever" if "lever" in lowered else (
+                            "ashby" if "ashby" in lowered else "web"
+                        )
+                    )
+                    return (
+                        JobPosting(
+                            url=data.get("absolute_url") or data.get("hostedUrl") or url,
+                            description=desc,
+                            company=str(company),
+                            role=str(title),
+                        ),
+                        portal,
+                    )
+        except Exception:
+            pass
+
+        html_text = getattr(resp, "text", "") or ""
+        if html_text:
+            posting = _extract_html_job_posting(url, html_text)
+            if posting is not None:
+                return posting, "web"
+
+    return None, "web"

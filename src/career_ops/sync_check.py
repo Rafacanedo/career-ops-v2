@@ -1,25 +1,27 @@
 """
 sync_check.py — Validate that the career-ops setup is consistent.
 
-Port of cv-sync-check.mjs.
-
 Checks:
   1. cv.md exists and is not empty
   2. config/profile.yml exists and has required fields filled in
-  3. No hardcoded metrics in _shared.md or batch/batch-prompt.md
-  4. article-digest.md freshness (if it exists, <30 days)
+  3. data/career_ops.db exists and is readable
+  4. No hardcoded metrics in _shared.md
+  5. article-digest.md freshness (if it exists, <30 days)
 """
 
 from __future__ import annotations
 
 import re
+import sqlite3
 import sys
 from datetime import UTC, datetime
 from pathlib import Path
 
 import click
 
+from .config import get_db_path
 from .context import CareerOpsContext, pass_ctx
+from .db import get_db_connection
 
 # Pattern for hardcoded metrics (numbers followed by units)
 _METRIC_PATTERN = re.compile(
@@ -77,10 +79,22 @@ def run_sync_check(root: Path) -> tuple[list[str], list[str]]:
                 )
                 break
 
-    # --- Check 3: Hardcoded metrics ---
+    # --- Check 3: data/career_ops.db ---
+    db_path = get_db_path(root)
+    if not db_path.exists():
+        warnings.append(
+            "data/career_ops.db not found. Run 'career-ops init' to initialize the database."
+        )
+    else:
+        try:
+            with get_db_connection(db_path) as conn:
+                conn.execute("SELECT 1 FROM sqlite_master LIMIT 1;").fetchone()
+        except sqlite3.Error as exc:
+            errors.append(f"data/career_ops.db is not readable: {exc}")
+
+    # --- Check 4: Hardcoded metrics ---
     files_to_check = [
         (root / "content" / "modes" / "_shared.md", "_shared.md"),
-        (root / "workspace" / "tracker-additions" / "batch-prompt.md", "batch-prompt.md"),
     ]
     for path, name in files_to_check:
         if not path.exists():
@@ -97,7 +111,7 @@ def run_sync_check(root: Path) -> tuple[list[str], list[str]]:
                     "Should this be read from cv.md/article-digest.md?"
                 )
 
-    # --- Check 4: article-digest.md freshness ---
+    # --- Check 5: article-digest.md freshness ---
     digest_path = pick_existing(root / "content" / "article-digest.md", root / "article-digest.md")
     if digest_path.exists():
         mtime = datetime.fromtimestamp(digest_path.stat().st_mtime, tz=UTC)
@@ -119,7 +133,7 @@ def run_sync_check(root: Path) -> tuple[list[str], list[str]]:
 @click.command()
 @pass_ctx
 def sync_check_cmd(ctx: CareerOpsContext) -> None:
-    """Validate career-ops setup consistency (cv.md, profile, metrics)."""
+    """Validate career-ops setup consistency (cv.md, profile, database, metrics)."""
     click.echo("\n=== career-ops sync check ===\n")
 
     errors, warnings = run_sync_check(ctx.root)

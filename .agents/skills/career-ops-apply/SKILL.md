@@ -13,21 +13,21 @@ Match the language of the application form:
 - **English** forms → respond in English (default).
 
 ## Input
-Paste the questions from the job application form, or share a screenshot, or provide the URL to the form.
+Paste the questions from the job application form, share a screenshot, or provide the `vaga_id` / URL to the form.
 
 ---
 
 ## Steps
 
 ### 🔍 1. Identify the Offer
-1. From the input, extract the company name and role title.
-2. Search `workspace/reports/` (case-insensitive) for a matching evaluation report.
+1. From the input, extract the `vaga_id` (if provided) or the company name and role title.
+2. Query SQLite via `career-ops show <vaga_id_or_seq>` or `career-ops list` to find the matching record and its `report_path`, or search `output/reports/` for a matching evaluation report.
 3. If a report exists, load it fully — especially **Section G** (draft answers) and **Section F** (STAR stories).
 4. If the report is missing Section F or Section G, read the numeric score before deciding what to do:
    - If score `< 4.0`, warn that F/G were intentionally skipped because the role is below the apply-prep threshold. Stop unless the user explicitly asks to force prep.
    - If score `>= 4.0`, route back to [career-ops-evaluate](/career-ops-evaluate) because the high-fit report is incomplete.
    - If the user explicitly asks to force F/G, force prep, or generate application prep anyway, generate or request F/G first, then continue.
-5. If no report exists, warn the user and offer to run a quick `/career-ops-evaluate` first.
+5. If no report exists, warn the user and offer to run `/career-ops-evaluate` first.
 
 ### 🔄 2. Check for Role Changes
 If the role on the form differs from the one in the report:
@@ -71,7 +71,7 @@ Section G is the base. Do not generate application answers from scratch unless `
 ```
 ## Application Answers: {Company} — {Role}
 
-Based on: Report #{NNN} | Score: {X.X}/5 | Archetype: {type}
+Based on: {vaga_id} | Score: {X.X}/5 | Archetype: {type}
 
 ---
 
@@ -91,9 +91,11 @@ Notes:
 
 ### 🚀 6. Post-Apply Update (if user confirms they submitted)
 If the user confirms they submitted the application:
-1. Update `workspace/applications.md` — change status from `Evaluated` to `Applied`.
+1. Update the lifecycle status in SQLite using `career-ops track`:
+   ```bash
+   career-ops track <vaga_id> --status applied --application-date {YYYY-MM-DD}
+   ```
 2. Save final form-specific answers to the report under a clearly named `### Final Application Answers` subsection within Section G.
-3. Suggest next step: LinkedIn outreach (`/career-ops-contacto`).
 
 ---
 ## Final Output

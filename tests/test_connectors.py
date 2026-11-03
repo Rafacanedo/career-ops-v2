@@ -8,31 +8,41 @@ def test_get_connector_inhire():
     connector = get_connector("inhire")
     assert isinstance(connector, InhireConnector)
 
+
 @patch("career_ops.fetcher.connectors.InhireConnector.safe_get")
 def test_inhire_connector_fetch_jobs_success(mock_safe_get):
     mock_resp = MagicMock()
     mock_resp.json.return_value = {
         "displayName": "Engenheiro(a) de Dados | Snowflake",
         "tenantName": "VONBZ",
-        "description": "<p>Vaga de Teste</p>"
+        "description": "<p>Vaga de Teste</p>",
     }
     mock_safe_get.return_value = mock_resp
 
     connector = InhireConnector()
-    jobs = connector.fetch_jobs({"url": "https://vonbz.inhire.app/vagas/c7f46744-ea3e-47c2-8c1b-e76175350a05/engenheiroa-de-dados"})
+    jobs = connector.fetch_jobs(
+        {
+            "url": "https://vonbz.inhire.app/vagas/c7f46744-ea3e-47c2-8c1b-e76175350a05/engenheiroa-de-dados"
+        }
+    )
 
     assert len(jobs) == 1
     assert jobs[0].role == "Engenheiro(a) de Dados | Snowflake"
     assert jobs[0].company == "VONBZ"
     assert jobs[0].description == "<p>Vaga de Teste</p>"
-    mock_safe_get.assert_called_once_with("https://api.inhire.app/job-posts/public/pages/c7f46744-ea3e-47c2-8c1b-e76175350a05", silent_404=True)
+    mock_safe_get.assert_called_once_with(
+        "https://api.inhire.app/job-posts/public/pages/c7f46744-ea3e-47c2-8c1b-e76175350a05",
+        silent_404=True,
+    )
+
 
 def test_fetch_orchestrator_filtering(tmp_path):
     from career_ops.fetcher.models import JobPosting
     from career_ops.fetcher.orchestrator import FetchOrchestrator
 
     config_file = tmp_path / "portals.yml"
-    config_file.write_text("""
+    config_file.write_text(
+        """
 title_filter:
   positive:
     - data
@@ -45,28 +55,55 @@ location_filter:
   negative:
     - colombia
     - casablanca
-""", encoding="utf-8")
+""",
+        encoding="utf-8",
+    )
 
     orch = FetchOrchestrator(root_dir=tmp_path, config_path=config_file)
 
     # Valid Data job -> Pass
-    job_valid = JobPosting(url="https://example.com/job1", description="Remote Brazil Data Engineer", company="Test", role="Senior Data Engineer")
+    job_valid = JobPosting(
+        url="https://example.com/job1",
+        description="Remote Brazil Data Engineer",
+        company="Test",
+        role="Senior Data Engineer",
+    )
     assert orch._passes_filter(job_valid) is True
 
     # Counsel / Legal -> Filtered out
-    job_counsel = JobPosting(url="https://example.com/job2", description="Legal Counsel", company="Test", role="Bill Pay Counsel")
+    job_counsel = JobPosting(
+        url="https://example.com/job2",
+        description="Legal Counsel",
+        company="Test",
+        role="Bill Pay Counsel",
+    )
     assert orch._passes_filter(job_counsel) is False
 
     # Mobile -> Filtered out
-    job_mobile = JobPosting(url="https://example.com/job3", description="Mobile App Dev", company="Test", role="Senior Mobile Engineer")
+    job_mobile = JobPosting(
+        url="https://example.com/job3",
+        description="Mobile App Dev",
+        company="Test",
+        role="Senior Mobile Engineer",
+    )
     assert orch._passes_filter(job_mobile) is False
 
     # Executive Director -> Filtered out
-    job_director = JobPosting(url="https://example.com/job4", description="Director of Data", company="Test", role="Director, Data Science")
+    job_director = JobPosting(
+        url="https://example.com/job4",
+        description="Director of Data",
+        company="Test",
+        role="Director, Data Science",
+    )
     assert orch._passes_filter(job_director) is False
 
     # International location (Colombia) -> Filtered out
-    job_colombia = JobPosting(url="https://example.com/job5", description="Job in Colombia", company="Test", role="Data Engineer Colombia")
+    job_colombia = JobPosting(
+        url="https://example.com/job5",
+        description="Job in Colombia",
+        company="Test",
+        role="Data Engineer Colombia",
+    )
     assert orch._passes_filter(job_colombia) is False
 
 
@@ -76,31 +113,35 @@ def test_gupy_mcp_connector(mock_call_tool):
 
     from career_ops.fetcher.connectors import GupyMCPConnector
 
-    mock_call_tool.return_value = json.dumps({
-        "data": {
-            "data": [
-                {
-                    "id": 11525461,
-                    "title": "Engenheiro de Dados Sênior",
-                    "description": "Snowflake e dbt.",
-                    "careerPageName": "Eng4tech",
-                    "jobUrl": "https://eng4tech.gupy.io/job/11525461",
-                    "workplaceType": "remote",
-                    "city": "Belo Horizonte",
-                    "state": "Minas Gerais",
-                    "country": "Brasil",
-                }
-            ]
+    mock_call_tool.return_value = json.dumps(
+        {
+            "data": {
+                "data": [
+                    {
+                        "id": 11525461,
+                        "title": "Engenheiro de Dados Sênior",
+                        "description": "Snowflake e dbt.",
+                        "careerPageName": "Eng4tech",
+                        "jobUrl": "https://eng4tech.gupy.io/job/11525461",
+                        "workplaceType": "remote",
+                        "city": "Belo Horizonte",
+                        "state": "Minas Gerais",
+                        "country": "Brasil",
+                    }
+                ]
+            }
         }
-    })
+    )
 
     connector = get_connector("gupy")
     assert isinstance(connector, GupyMCPConnector)
-    jobs = connector.fetch_jobs({
-        "queries": ["Engenheiro de Dados"],
-        "workplace_types": "remote",
-        "limit": 10,
-    })
+    jobs = connector.fetch_jobs(
+        {
+            "queries": ["Engenheiro de Dados"],
+            "workplace_types": "remote",
+            "limit": 10,
+        }
+    )
 
     assert len(jobs) == 1
     assert jobs[0].company == "Eng4tech"
@@ -129,7 +170,10 @@ def test_himalayas_mcp_connector(mock_call_tool):
     assert len(jobs) == 1
     assert jobs[0].role == "Senior Data Engineer"
     assert jobs[0].company == "Acme Global"
-    assert jobs[0].url == "https://himalayas.app/companies/acme-global/jobs/senior-data-engineer"
+    assert (
+        jobs[0].url
+        == "https://himalayas.app/companies/acme-global/jobs/senior-data-engineer"
+    )
 
 
 @patch("career_ops.fetcher.connectors.JobicyMCPConnector.call_tool")
@@ -138,20 +182,22 @@ def test_jobicy_mcp_connector(mock_call_tool):
 
     from career_ops.fetcher.connectors import JobicyMCPConnector
 
-    mock_call_tool.return_value = json.dumps({
-        "count": 1,
-        "jobs": [
-            {
-                "id": 141990,
-                "url": "https://jobicy.com/jobs/141990-analytics-engineer",
-                "jobTitle": "Analytics Engineer",
-                "companyName": "DataFlow Inc",
-                "jobGeo": "LATAM",
-                "jobLevel": "Senior",
-                "jobExcerpt": "Lead dbt modeling.",
-            }
-        ]
-    })
+    mock_call_tool.return_value = json.dumps(
+        {
+            "count": 1,
+            "jobs": [
+                {
+                    "id": 141990,
+                    "url": "https://jobicy.com/jobs/141990-analytics-engineer",
+                    "jobTitle": "Analytics Engineer",
+                    "companyName": "DataFlow Inc",
+                    "jobGeo": "LATAM",
+                    "jobLevel": "Senior",
+                    "jobExcerpt": "Lead dbt modeling.",
+                }
+            ],
+        }
+    )
 
     connector = get_connector("jobicy")
     assert isinstance(connector, JobicyMCPConnector)
@@ -169,18 +215,20 @@ def test_jobstack_mcp_connector(mock_call_tool):
 
     from career_ops.fetcher.connectors import JobStackMCPConnector
 
-    mock_call_tool.return_value = json.dumps({
-        "results": [
-            {
-                "id": "gh-123",
-                "title": "AI Engineer",
-                "company": "NeuralOps",
-                "location": "Remote",
-                "url": "https://boards.greenhouse.io/neuralops/jobs/123",
-                "description": "Build LLM agents.",
-            }
-        ]
-    })
+    mock_call_tool.return_value = json.dumps(
+        {
+            "results": [
+                {
+                    "id": "gh-123",
+                    "title": "AI Engineer",
+                    "company": "NeuralOps",
+                    "location": "Remote",
+                    "url": "https://boards.greenhouse.io/neuralops/jobs/123",
+                    "description": "Build LLM agents.",
+                }
+            ]
+        }
+    )
 
     connector = get_connector("jobstack")
     assert isinstance(connector, JobStackMCPConnector)
@@ -261,12 +309,14 @@ def test_github_issues_connector(mock_safe_get):
     assert "Databricks" in jobs[0].description
 
 
-def test_fetch_orchestrator_run_creates_jds_and_padded_ids(tmp_path):
-    from career_ops.fetcher.orchestrator import FetchOrchestrator
+def test_fetch_orchestrator_run_persists_to_repository_and_deduplicates(tmp_path):
     from career_ops.fetcher.models import JobPosting
+    from career_ops.fetcher.orchestrator import FetchOrchestrator
+    from career_ops.repository import CareerOpsRepository
 
     config_file = tmp_path / "portals.yml"
-    config_file.write_text("""
+    config_file.write_text(
+        """
 targets:
   - company_name: MockCo
     ats_type: greenhouse
@@ -274,36 +324,60 @@ targets:
 title_filter:
   positive:
     - data
-""", encoding="utf-8")
-
-    orch = FetchOrchestrator(root_dir=tmp_path, config_path=config_file)
-
-    mock_job = JobPosting(
-        url="https://boards.greenhouse.io/mockco/jobs/999",
-        description="Build Python and SQL pipelines.",
-        company="MockCo",
-        role="Data Engineer",
+""",
+        encoding="utf-8",
     )
 
-    with patch("career_ops.fetcher.connectors.GreenhouseConnector.fetch_jobs", return_value=[mock_job]):
+    db_path = tmp_path / "data" / "career_ops.db"
+    repo = CareerOpsRepository(db_path=db_path)
+    orch = FetchOrchestrator(
+        root_dir=tmp_path, config_path=config_file, repository=repo
+    )
+
+    mock_job = JobPosting(
+        url="https://boards.greenhouse.io/mockco/jobs/999?utm_source=linkedin",
+        description="Build Python and SQL pipelines.",
+        company="MockCo Inc.",
+        role="Data Engineer [Remote]",
+    )
+
+    with patch(
+        "career_ops.fetcher.connectors.GreenhouseConnector.fetch_jobs",
+        return_value=[mock_job],
+    ):
         stats = orch.run()
 
+    assert stats["fetched"] == 1
+    assert stats["filtered"] == 0
     assert stats["saved"] == 1
+    assert stats["errors"] == 0
 
-    # Check that workspace/jds/jd_001.md was generated
-    jd_file = tmp_path / "workspace" / "jds" / "jd_001.md"
-    assert jd_file.exists()
-    assert "Build Python and SQL pipelines." in jd_file.read_text(encoding="utf-8")
+    # Verify record persisted in SQLite via CareerOpsRepository
+    vagas = repo.list_vagas(status="queued")
+    assert len(vagas) == 1
+    vaga_id = vagas[0]["id"]
+    assert vagas[0]["company"] == "MockCo"
+    assert vagas[0]["role"] == "Data Engineer [Remote]"
+    assert vagas[0]["source_portal"] == "greenhouse"
+    assert vagas[0]["status_triagem"] == "queued"
+    assert repo.get_vaga_description(vaga_id) == "Build Python and SQL pipelines."
 
-    # Check job-tracker.csv has 001 and correct columns
-    tracker_file = tmp_path / "workspace" / "job-tracker.csv"
-    assert tracker_file.exists()
-    content = tracker_file.read_text(encoding="utf-8-sig")
-    assert "001" in content
-    assert "MockCo" in content
-    assert "Data Engineer" in content
-    assert "workspace/jds/jd_001.md" in content
+    # Running a second time with the same canonical URL and updated JD reconciles without duplicating
+    updated_job = JobPosting(
+        url="https://boards.greenhouse.io/mockco/jobs/999",
+        description="Build Python, SQL, and dbt pipelines.",
+        company="MockCo Inc.",
+        role="Data Engineer [Remote]",
+    )
+    with patch(
+        "career_ops.fetcher.connectors.GreenhouseConnector.fetch_jobs",
+        return_value=[updated_job],
+    ):
+        stats_second = orch.run()
 
-
-
-
+    assert stats_second["fetched"] == 1
+    assert stats_second["saved"] == 0
+    assert len(repo.list_vagas()) == 1
+    assert (
+        repo.get_vaga_description(vaga_id) == "Build Python, SQL, and dbt pipelines."
+    )

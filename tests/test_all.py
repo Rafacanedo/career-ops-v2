@@ -20,20 +20,17 @@ class TestSyntax:
     MODULES = [
         "career_ops",
         "career_ops.config",
+        "career_ops.context",
         "career_ops.models",
         "career_ops.utils",
-        "career_ops.parser",
+        "career_ops.db",
+        "career_ops.repository",
         "career_ops.cli",
-        "career_ops.normalize",
         "career_ops.verify",
         "career_ops.sync_check",
-        "career_ops.dedup",
         "career_ops.dashboard",
         "career_ops.export",
-        "career_ops.scan_csv",
         "career_ops.cv",
-        "career_ops.unapplied",
-        "career_ops.tracker",
         "career_ops.fetch_cmd",
         "career_ops.fetcher.connectors",
         "career_ops.fetcher.orchestrator",
@@ -53,17 +50,19 @@ class TestCliRegistration:
     """All commands must be registered and show help."""
 
     EXPECTED_COMMANDS = [
-        "normalize",
+        "init",
+        "intake",
+        "intake-raw",
+        "scan",
+        "list",
+        "show",
+        "track",
+        "stats",
+        "export",
         "verify",
         "sync-check",
-        "dedup",
         "dashboard",
-        "export",
-        "scan-csv",
         "cv",
-        "unapplied",
-        "tracker",
-        "fetch",
     ]
 
     def test_cli_has_all_commands(self):
@@ -85,14 +84,13 @@ class TestGracefulEmptyData:
     """Commands should not crash when no data files exist."""
 
     COMMANDS_OK_ON_EMPTY = [
+        ["init"],
         ["verify"],
-        ["normalize", "--dry-run"],
-        ["dedup", "--dry-run"],
         ["sync-check"],
+        ["list"],
+        ["stats"],
         ["export"],
-        ["unapplied"],
-        ["tracker"],
-        ["fetch", "--help"],
+        ["scan", "--help"],
     ]
 
     @pytest.mark.parametrize("cmd_args", COMMANDS_OK_ON_EMPTY)

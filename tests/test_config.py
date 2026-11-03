@@ -1,40 +1,32 @@
 from __future__ import annotations
 
 from career_ops.config import (
-    get_additions_dir,
-    get_apps_file,
-    get_job_tracker_file,
+    get_cv_output_dir,
+    get_db_path,
     get_output_dir,
-    get_pipeline_file,
     get_reports_dir,
     get_states_file,
+    resolve_root,
 )
 
 
-def test_resolvers_are_workspace_only(career_ops_root):
+def test_resolvers_use_sqlite_and_workspace_layout(career_ops_root):
     root = career_ops_root
 
-    assert get_apps_file(root) == root / "workspace" / "applications.md"
-    assert get_pipeline_file(root) == root / "workspace" / "pipeline.md"
-    assert get_job_tracker_file(root) == root / "workspace" / "job-tracker.csv"
+    assert get_db_path(root) == root / "data" / "career_ops.db"
     assert get_output_dir(root) == root / "workspace" / "output"
-    assert get_additions_dir(root) == root / "workspace" / "tracker-additions"
-    assert get_reports_dir(root) == root / "workspace" / "reports"
+    assert get_cv_output_dir(root) == root / "output" / "cv"
+    assert get_reports_dir(root) == root / "output" / "reports"
     assert get_states_file(root) == root / "config" / "states.yml"
+    assert resolve_root(str(root)) == root.resolve()
 
 
 def test_resolvers_ignore_legacy_layouts(career_ops_root):
     root = career_ops_root
-    (root / "data" / "applications.md").write_text("legacy", encoding="utf-8")
-    (root / "data" / "pipeline.md").write_text("legacy", encoding="utf-8")
-    (root / "data" / "job-tracker.csv").write_text("legacy", encoding="utf-8")
     (root / "output").mkdir(exist_ok=True)
     (root / "templates" / "states.yml").write_text("legacy", encoding="utf-8")
 
-    assert get_apps_file(root) == root / "workspace" / "applications.md"
-    assert get_pipeline_file(root) == root / "workspace" / "pipeline.md"
-    assert get_job_tracker_file(root) == root / "workspace" / "job-tracker.csv"
+    assert get_db_path(root) == root / "data" / "career_ops.db"
     assert get_output_dir(root) == root / "workspace" / "output"
-    assert get_additions_dir(root) == root / "workspace" / "tracker-additions"
-    assert get_reports_dir(root) == root / "workspace" / "reports"
+    assert get_reports_dir(root) == root / "output" / "reports"
     assert get_states_file(root) == root / "config" / "states.yml"

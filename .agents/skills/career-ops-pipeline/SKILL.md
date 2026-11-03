@@ -5,54 +5,64 @@ description: Process all URLs in your pending inbox.
 
 # Career-Ops Pipeline Processor
 
-Use this workflow to evaluate all job URLs currently in your `workspace/job-tracker.csv` with 'Processing Date' empty.
+Use this workflow to batch-evaluate job opportunities currently queued in SQLite (`status = 'queued'`) or to ingest and evaluate a batch of new URLs.
 
 ## Pre-flight Check
-Run sync check and scan the tracker before starting:
+Run sync check before starting:
 ```bash
 career-ops sync-check
-career-ops scan-csv
 ```
-If warnings appear, notify user and ask whether to continue.
+If warnings appear, notify the user and ask whether to continue.
 
 ## Steps
 
-### 📂 1. Load Pipeline
-1. Read `workspace/pipeline.md`.
-2. Extract all items marked as `- [ ]` from the "Pending" section.
-3. For each item, check if it contains a `[jd: local:...]` reference.
-4. List all files in `workspace/reports/` to determine the starting sequential report number.
-
-### 🔄 2. Process Each Item
-For each pending item:
-
-1. **Determine report number** — max existing report number + 1 (zero-padded, e.g. `007`).
-2. **Extract the URL** — strip any extra metadata from the pipeline line (e.g., `| Company | Title`).
-3. **Check for Local JD** — If the line contains `[jd: local:path/to/jd.md]`, use this file as the source of truth for the Job Description.
-4. **Trigger evaluation** — invoke the [career-ops-evaluate](/career-ops-evaluate) workflow for this URL. If a local JD was found, pass its content (or path) to the evaluator.
-5. **Handle errors:**
-   - If URL is inaccessible (login wall, 404, private) → mark as `- [!] {url} — Error: {reason}` and continue to next item.
-   - If extraction fails after all methods → mark as `- [!]` and ask the user to paste the JD manually.
-6. On success → Move the item from "Pending" to "Processed" in `workspace/pipeline.md`:
+### 📂 1. Load Queued Opportunities from SQLite
+1. If the user provided new raw URLs in the prompt, ingest each one first:
+   ```bash
+   career-ops intake "<url>"
    ```
-   - [x] #{NNN} | {url} | {company} | {role} | {score}/5 | PDF {✅|❌}
+2. Query the pending queue from SQLite (using a compact `--limit` to protect context tokens):
+   ```bash
+   career-ops list --status queued --limit 10
    ```
-   PDF is ✅ only when score `>= 4.0` and the tailored PDF was generated. For score `< 4.0`, use PDF ❌ by policy.
+3. If no queued records exist, inform the user and suggest running `/career-ops-scan` or `career-ops intake <url>`.
 
-### 📊 3. Sync Tracker
-After processing all items, run:
-```bash
-career-ops merge
-```
-Then run a health check:
+### 🔄 2. Process Each Queued Item
+For each queued item (`vaga_id`):
+
+1. **Fetch the full Job Description on demand:**
+   ```bash
+   career-ops show <vaga_id> --full
+   ```
+2. **Handle missing descriptions:**
+   - If `description` is empty, attempt fetching from `canonical_url` / `original_url` via URL reader or browser tools.
+   - If inaccessible (login wall, 404, closed role), mark the item as `skip` or `discarded` so it leaves the queue:
+     ```bash
+     career-ops track <vaga_id> --status discarded --notes "Inaccessible or closed URL"
+     ```
+3. **Trigger evaluation:**
+   - Execute the [career-ops-evaluate](/career-ops-evaluate) workflow for `<vaga_id>`.
+   - Save the evaluation report to `output/reports/{seq:03d}-{role_slug}-{company_slug}.md` (suggested by `career-ops show <id>`).
+   - Commit evaluation state via `career-ops evaluate`:
+     ```bash
+     career-ops evaluate <vaga_id> --file "workspace/staging/eval_<vaga_id>.json"
+     ```
+   - If score `>= 4.0`, generate the tailored CV PDF via [career-ops-cv](/career-ops-cv):
+     ```bash
+     career-ops cv render --payload "workspace/staging/cv_<vaga_id>.json" --vaga-id <vaga_id>
+     ```
+
+### 📊 3. Verify Pipeline Health
+After processing the batch, run integrity verification and summary stats:
 ```bash
 career-ops verify
+career-ops stats
 ```
 
 ---
 ## Final Output
 Show a results table:
 ```
-| # | Company | Role | Score | PDF | Recommendation |
+| Vaga ID | Company | Role | Score | PDF | Recommendation |
 ```
-Then show overall pipeline stats (total processed, avg score, high-fit PDFs generated).
+Then show overall pipeline stats (`career-ops stats`: total tracked, queued remaining, average score, and high-fit PDFs generated).

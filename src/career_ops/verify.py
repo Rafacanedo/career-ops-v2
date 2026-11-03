@@ -1,29 +1,55 @@
 """
-verify.py — Health check for career-ops pipeline integrity (job-tracker.csv).
+verify.py — Health check for career-ops SQLite database and deliverable artifacts.
 
 Checks:
-  1. job-tracker.csv exists and contains 14 columns
-  2. ID uniqueness and zero-padding
-  3. Valid report links if Report Path is specified
-  4. Valid CV PDF links if CV PDF Path is specified
-  5. Valid Job Description Path if specified
+  1. data/career_ops.db exists and passes SQLite integrity_check
+  2. Required relational tables (vagas, vaga_descricoes, tracking_lifecycle) exist
+  3. Referenced report markdown files in tracking_lifecycle exist on disk
+  4. Referenced CV PDF files in tracking_lifecycle exist on disk
 """
 
 from __future__ import annotations
 
-import csv
+import re
 import sys
 from pathlib import Path
 
 import click
 
-from .config import get_job_tracker_file
+from .config import get_db_path
 from .context import CareerOpsContext, pass_ctx
-from .scan_csv import FIELDNAMES
+from .db import get_db_connection
+from .repository import CareerOpsRepository
+
+REQUIRED_TABLES = {"vagas", "vaga_descricoes", "tracking_lifecycle"}
+
+
+def _resolve_artifact_path(root: Path, raw_ref: str) -> Path:
+    ref = raw_ref.strip()
+    md_match = re.match(r"\[([^\]]+)\]\(([^)]+)\)", ref)
+    if md_match:
+        ref = md_match.group(2).strip()
+    elif ref.startswith("local:"):
+        ref = ref.split(":", 1)[1].strip()
+
+    p = Path(ref)
+    if p.is_absolute():
+        return p
+
+    candidates = [
+        root / ref,
+        root / "output" / "cv" / Path(ref).name,
+        root / "output" / "reports" / Path(ref).name,
+        root / "workspace" / ref,
+    ]
+    for candidate in candidates:
+        if candidate.exists():
+            return candidate
+    return candidates[0]
 
 
 def run_verify(root: Path) -> tuple[int, int]:
-    """Run pipeline health checks against job-tracker.csv."""
+    """Run pipeline health checks against data/career_ops.db and artifact files."""
     errors = 0
     warnings = 0
 
@@ -40,69 +66,57 @@ def run_verify(root: Path) -> tuple[int, int]:
     def ok(msg: str) -> None:
         click.echo(f"✅ {msg}")
 
-    tracker_file = get_job_tracker_file(root)
-
-    if not tracker_file.exists():
-        error("job-tracker.csv nao encontrado em workspace/")
+    db_path = get_db_path(root)
+    if not db_path.exists():
+        error(f"Database file not found: {db_path}")
         return errors, warnings
 
-    click.echo("\n📊 Checking job-tracker.csv integrity...\n")
+    click.echo("\n📊 Checking SQLite database integrity...\n")
 
-    rows = []
-    with open(tracker_file, "r", encoding="utf-8-sig") as f:
-        reader = csv.DictReader(f, delimiter=";")
-        header = reader.fieldnames or []
-        for r in reader:
-            rows.append(r)
+    try:
+        with get_db_connection(db_path) as conn:
+            integrity = conn.execute("PRAGMA integrity_check;").fetchone()
+            if not integrity or str(integrity[0]).lower() != "ok":
+                error(f"SQLite integrity check failed: {integrity[0] if integrity else 'unknown'}")
+                return errors, warnings
+            ok("SQLite PRAGMA integrity_check passed")
 
-    # Check 1: Header verification
-    missing_cols = [c for c in FIELDNAMES if c not in header]
-    if missing_cols:
-        error(f"job-tracker.csv missing columns: {', '.join(missing_cols)}")
-    else:
-        ok("job-tracker.csv header has all 14 columns")
+            table_rows = conn.execute(
+                "SELECT name FROM sqlite_master WHERE type='table'"
+            ).fetchall()
+            present_tables = {r["name"] for r in table_rows}
+            missing_tables = REQUIRED_TABLES - present_tables
+            if missing_tables:
+                error(f"Missing required database tables: {', '.join(sorted(missing_tables))}")
+                return errors, warnings
+            ok("All 3 relational tables (vagas, vaga_descricoes, tracking_lifecycle) exist")
+    except Exception as exc:
+        error(f"Failed to read SQLite database: {exc}")
+        return errors, warnings
 
-    # Check 2: ID uniqueness
-    seen_ids = set()
-    dup_ids = 0
-    for r in rows:
-        jid = r.get("ID", "").strip()
-        if jid in seen_ids:
-            error(f"Duplicate ID found: #{jid}")
-            dup_ids += 1
-        seen_ids.add(jid)
-    if dup_ids == 0:
-        ok("All IDs are unique")
+    repo = CareerOpsRepository(db_path=db_path, auto_init=False)
+    rows = repo.list_vagas(limit=100000)
 
-    # Check 3: Report & CV files exist
     broken_reports = 0
     broken_cvs = 0
-    broken_jds = 0
 
     for r in rows:
-        jid = r.get("ID", "").strip()
-        rep = r.get("Report Path", "").strip()
-        cv = r.get("CV PDF Path", "").strip()
-        jd = r.get("Job Description Path", "").strip()
+        vid = r.get("id", "")
+        rep = (r.get("report_path") or "").strip()
+        cv = (r.get("cv_pdf_path") or "").strip()
 
-        if rep and not (root / rep).exists():
-            error(f"#{jid}: Report file missing: {rep}")
+        if rep and not _resolve_artifact_path(root, rep).exists():
+            error(f"{vid}: Report file missing: {rep}")
             broken_reports += 1
 
-        if cv and not (root / cv).exists():
-            error(f"#{jid}: CV PDF file missing: {cv}")
+        if cv and not _resolve_artifact_path(root, cv).exists():
+            error(f"{vid}: CV PDF file missing: {cv}")
             broken_cvs += 1
-
-        if jd and not (root / jd).exists():
-            warn(f"#{jid}: JD file missing: {jd}")
-            broken_jds += 1
 
     if broken_reports == 0:
         ok("All report file paths exist")
     if broken_cvs == 0:
         ok("All CV PDF file paths exist")
-    if broken_jds == 0:
-        ok("All JD file paths exist")
 
     click.echo("\n" + "=" * 50)
     click.echo(f"📊 Pipeline Health: {errors} errors, {warnings} warnings")
@@ -119,6 +133,6 @@ def run_verify(root: Path) -> tuple[int, int]:
 @click.command()
 @pass_ctx
 def verify_cmd(ctx: CareerOpsContext) -> None:
-    """Health check for career-ops pipeline integrity."""
+    """Health check for career-ops SQLite pipeline integrity."""
     errors, _ = run_verify(ctx.root)
     sys.exit(1 if errors > 0 else 0)

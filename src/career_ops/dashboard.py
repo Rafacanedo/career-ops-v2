@@ -1,8 +1,9 @@
 """
 dashboard.py — Static applications dashboard generator.
 
-Reads workspace/applications.md, shapes a dashboard-oriented view model,
-and writes a self-contained HTML artifact for local use.
+Reads pipeline state from SQLite via CareerOpsRepository, shapes a
+dashboard-oriented view model, and writes a self-contained HTML artifact
+for local use.
 """
 
 from __future__ import annotations
@@ -17,16 +18,18 @@ from pathlib import Path
 
 import click
 
-from .config import get_apps_file, load_states
+from .config import get_db_path, load_states
 from .context import CareerOpsContext, pass_ctx
-from .parser import read_applications
-from .utils import parse_score, validate_status
+from .repository import CareerOpsRepository
+from .utils import validate_status
 
 HIGH_SCORE_THRESHOLD = 4.5
 RECENT_APPLICATION_LIMIT = 7
 
 
 def _status_to_dashboard_group(status: str, states: dict) -> str:
+    if status.strip().lower() == "queued":
+        return "queued"
     normalized = validate_status(status)
     lowered = normalized.lower()
     for state_id, meta in states.items():
@@ -49,8 +52,9 @@ def _report_reference_to_href(root: Path, report_value: str, output_path: Path) 
         raw_path = report_value
 
     candidates = [
-        root / "workspace" / raw_path,
         root / raw_path,
+        root / "output" / "reports" / Path(raw_path).name,
+        root / "workspace" / raw_path,
         root / raw_path.replace("workspace/", "", 1),
     ]
     report_path = next((candidate for candidate in candidates if candidate.exists()), candidates[0])
@@ -70,44 +74,57 @@ def _report_reference_label(report_value: str) -> str:
 
 
 def _build_dashboard_data(root: Path, output_path: Path) -> dict:
-    apps_file = get_apps_file(root)
-    if not apps_file.exists():
-        raise FileNotFoundError(f"Not found: {apps_file}")
-
-    _, entries = read_applications(apps_file)
+    db_path = get_db_path(root)
+    repo = CareerOpsRepository(db_path=db_path, auto_init=True)
+    rows = repo.list_vagas(limit=10000)
     states = load_states(root)
 
     applications = []
     counts_by_status = Counter()
     counts_by_group = Counter()
 
-    for entry in entries:
-        score_value = parse_score(entry.score)
-        dashboard_group = _status_to_dashboard_group(entry.status, states)
-        report_href = _report_reference_to_href(root, entry.report, output_path)
-        pdf_ready = "✅" in entry.pdf
-        report_available = bool(entry.report.strip())
+    for row in rows:
+        raw_status = str(row.get("status") or row.get("status_triagem") or "Evaluated")
+        if raw_status.strip().lower() == "queued":
+            status_label = "Queued"
+        else:
+            status_label = validate_status(raw_status)
+        dashboard_group = _status_to_dashboard_group(status_label, states)
 
+        score_raw = row.get("score")
+        score_value = float(score_raw) if score_raw is not None else 0.0
+        score_text = f"{score_value:.1f}/5" if score_raw is not None else ""
+
+        report_raw = str(row.get("report_path") or "")
+        report_href = _report_reference_to_href(root, report_raw, output_path)
+        cv_raw = str(row.get("cv_pdf_path") or "")
+        pdf_ready = bool(cv_raw.strip())
+        report_available = bool(report_raw.strip())
+        date_str = str(row.get("application_date") or row.get("created_at") or "")[:10]
+
+        seq_val = row.get("seq_num")
         record = {
-            "id": entry.num,
-            "date": entry.date,
-            "company": entry.company,
-            "role": entry.role,
-            "status": validate_status(entry.status),
+            "id": row["id"],
+            "seq_num": seq_val,
+            "seq_label": f"#{seq_val:03d}" if seq_val is not None else "",
+            "date": date_str,
+            "company": row["company"],
+            "role": row["role"],
+            "status": status_label,
             "dashboard_group": dashboard_group,
-            "score_text": entry.score,
+            "score_text": score_text,
             "score_value": score_value,
             "pdf_ready": pdf_ready,
             "report_path": report_href,
-            "report_label": _report_reference_label(entry.report),
+            "report_label": _report_reference_label(report_raw),
             "report_available": report_available,
-            "notes": entry.notes,
+            "notes": str(row.get("notes") or ""),
         }
         applications.append(record)
         counts_by_status[record["status"]] += 1
         counts_by_group[dashboard_group] += 1
 
-    applications.sort(key=lambda item: (item["date"], item["id"]), reverse=True)
+    applications.sort(key=lambda item: (item["date"], str(item["id"])), reverse=True)
 
     scored = [item["score_value"] for item in applications if item["score_text"].strip()]
     average_score = round(sum(scored) / len(scored), 2) if scored else 0.0
@@ -115,7 +132,7 @@ def _build_dashboard_data(root: Path, output_path: Path) -> dict:
 
     return {
         "generated_at": datetime.now(UTC).isoformat(),
-        "source_file": str(apps_file),
+        "source_file": str(db_path),
         "summary": {
             "total_applications": len(applications),
             "average_score": average_score,
@@ -126,7 +143,6 @@ def _build_dashboard_data(root: Path, output_path: Path) -> dict:
         },
         "recent_applications": recent,
         "applications": applications,
-        # TODO: formal JSON/API contract for web integration is intentionally deferred.
     }
 
 
@@ -544,7 +560,7 @@ def render_dashboard_html(data: dict) -> str:
 
 @click.group()
 def dashboard_cmd() -> None:
-    """Generate static dashboard artifacts from applications.md."""
+    """Generate static dashboard artifacts from SQLite database."""
 
 
 @dashboard_cmd.command("build")

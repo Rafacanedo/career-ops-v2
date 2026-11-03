@@ -8,11 +8,11 @@ from career_ops.cli import cli
 from career_ops.dashboard import _build_dashboard_data, render_dashboard_html
 
 
-def test_build_dashboard_data_uses_workspace_tracker(root_with_tracker: Path):
+def test_build_dashboard_data_uses_sqlite_repository(root_with_tracker: Path):
     output_path = root_with_tracker / "workspace" / "output" / "dashboard.html"
     data = _build_dashboard_data(root_with_tracker, output_path)
 
-    assert data["source_file"].replace("\\", "/").endswith("workspace/applications.md")
+    assert data["source_file"].replace("\\", "/").endswith("data/career_ops.db")
     assert data["summary"]["total_applications"] == 4
     assert data["summary"]["counts_by_status"]["Applied"] == 1
     assert data["summary"]["counts_by_group"]["interview"] == 1

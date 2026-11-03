@@ -13,6 +13,15 @@ from pathlib import Path
 import yaml
 
 
+def _is_project_root(path: Path) -> bool:
+    """Return True if path contains known career-ops project root markers."""
+    return (
+        (path / "data" / "career_ops.db").exists()
+        or (path / "config" / "states.yml").exists()
+        or (path / "pyproject.toml").exists()
+    )
+
+
 def resolve_root(root: str | None = None) -> Path:
     """
     Resolve the path to the career-ops project root.
@@ -32,40 +41,22 @@ def resolve_root(root: str | None = None) -> Path:
 
     # cwd fallback — the standard case when running from the project directory
     cwd = Path.cwd()
-    if (cwd / "workspace" / "applications.md").exists():
+    if _is_project_root(cwd):
         return cwd
 
     # Package location fallback — src/career_ops/config.py → go 3 levels up = project root
     pkg_root = Path(__file__).resolve().parent.parent.parent
-    if (pkg_root / "workspace" / "applications.md").exists():
+    if _is_project_root(pkg_root):
         return pkg_root
 
     # Last resort: cwd (no data files found, commands will handle gracefully)
     return cwd
 
 
-def get_apps_file(root: Path) -> Path:
-    """
-    Return the path to applications.md.
-    The workspace/ layout is the only supported runtime contract.
-    """
-    return root / "workspace" / "applications.md"
-
-
-def get_pipeline_file(root: Path) -> Path:
-    """
-    Return the path to pipeline.md.
-    The workspace/ layout is the only supported runtime contract.
-    """
-    return root / "workspace" / "pipeline.md"
-
-
-def get_job_tracker_file(root: Path) -> Path:
-    """
-    Return the path to job-tracker.csv.
-    The workspace/ layout is the only supported runtime contract.
-    """
-    return root / "workspace" / "job-tracker.csv"
+def get_db_path(root: Path | None = None) -> Path:
+    """Return the path to data/career_ops.db."""
+    resolved = root if root is not None else resolve_root()
+    return resolved / "data" / "career_ops.db"
 
 
 def get_output_dir(root: Path) -> Path:
@@ -73,14 +64,14 @@ def get_output_dir(root: Path) -> Path:
     return root / "workspace" / "output"
 
 
-def get_additions_dir(root: Path) -> Path:
-    """Return the workspace-only path to tracker-additions."""
-    return root / "workspace" / "tracker-additions"
+def get_cv_output_dir(root: Path) -> Path:
+    """Return the standard output directory for generated ATS resumes."""
+    return root / "output" / "cv"
 
 
 def get_reports_dir(root: Path) -> Path:
-    """Return the workspace-only path to reports."""
-    return root / "workspace" / "reports"
+    """Return the standard deliverable path to evaluation reports."""
+    return root / "output" / "reports"
 
 
 def get_states_file(root: Path) -> Path:

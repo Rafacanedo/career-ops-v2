@@ -8,26 +8,9 @@ from pathlib import Path
 
 import pytest
 
-SAMPLE_APPLICATIONS_MD = """\
-# Applications Tracker
-
-| # | Date | Company | Role | Status | Score/5 | PDF | Report | Notes |
-|---|------|---------|------|--------|---------|-----|--------|-------|
-| 1 | 2026-01-15 | Acme Corp | Senior Data Engineer | Evaluated | 4.2/5 | ✅ | [1](reports/001-acme-2026-01-15.md) | Good match |
-| 2 | 2026-01-16 | BigTech | Machine Learning Engineer | Applied | 3.8/5 | ✅ | [2](reports/002-bigtech-2026-01-16.md) | Applied |
-| 3 | 2026-01-17 | StartupXYZ | Data Scientist | Rejected | 2.1/5 | ❌ | [3](reports/003-startupxyz-2026-01-17.md) | Low score |
-| 4 | 2026-01-18 | MegaCorp | Analytics Lead | Interview | 4.5/5 | ✅ | [4](reports/004-megacorp-2026-01-18.md) | In process |
-"""
-
-SAMPLE_PIPELINE_MD = """\
-# Pipeline — Pending Evaluations
-
-## Pending
-
-- [ ] https://example.com/jobs/123 [jd: local:workspace/jds/jd_001.md]
-
-## Processed
-"""
+from career_ops.config import get_db_path
+from career_ops.models import VagaInput
+from career_ops.repository import CareerOpsRepository
 
 SAMPLE_STATES_YML = """\
 states:
@@ -86,52 +69,101 @@ def career_ops_root(tmp_path: Path) -> Path:
     (root / "workspace" / "reports").mkdir()
     (root / "workspace" / "output").mkdir()
     (root / "workspace" / "jds").mkdir()
-    (root / "workspace" / "tracker-additions").mkdir(parents=True)
-    (root / "batch" / "tracker-additions").mkdir(parents=True)
     (root / "config").mkdir()
 
-    # Write states.yml in both current and legacy locations used by tests.
+    # Write states.yml
     (root / "config" / "states.yml").write_text(SAMPLE_STATES_YML, encoding="utf-8")
-    (root / "templates" / "states.yml").write_text(SAMPLE_STATES_YML, encoding="utf-8")
 
     return root
 
 
 @pytest.fixture
-def root_with_tracker(career_ops_root: Path) -> Path:
-    """Career-ops root with a pre-populated applications.md."""
-    apps_file = career_ops_root / "workspace" / "applications.md"
-    apps_file.write_text(SAMPLE_APPLICATIONS_MD, encoding="utf-8")
-    (career_ops_root / "data" / "applications.md").write_text(
-        SAMPLE_APPLICATIONS_MD, encoding="utf-8"
-    )
-    (career_ops_root / "workspace" / "pipeline.md").write_text(
-        SAMPLE_PIPELINE_MD, encoding="utf-8"
-    )
-    (career_ops_root / "data" / "pipeline.md").write_text(
-        SAMPLE_PIPELINE_MD, encoding="utf-8"
-    )
-    (career_ops_root / "workspace" / "job-tracker.csv").write_text(
-        "ID;URL;Job Description;Company;Position;Processing Date\r\n",
-        encoding="utf-8-sig",
-    )
-    (career_ops_root / "data" / "job-tracker.csv").write_text(
-        "ID;URL;Job Description;Company;Position;Processing Date\r\n",
-        encoding="utf-8-sig",
-    )
+def temp_repo(career_ops_root: Path) -> CareerOpsRepository:
+    """Initialize and return a temporary CareerOpsRepository in career_ops_root."""
+    return CareerOpsRepository(db_path=get_db_path(career_ops_root), auto_init=True)
 
-    # Create the report files referenced in the tracker
-    for num, slug in [
-        (1, "001-acme-2026-01-15"),
-        (2, "002-bigtech-2026-01-16"),
-        (3, "003-startupxyz-2026-01-17"),
-        (4, "004-megacorp-2026-01-18"),
-    ]:
-        (career_ops_root / "workspace" / "reports" / f"{slug}.md").write_text(
-            f"# Report {num}", encoding="utf-8"
+
+@pytest.fixture
+def root_with_tracker(career_ops_root: Path) -> Path:
+    """Career-ops root with a pre-populated SQLite database and deliverable files."""
+    repo = CareerOpsRepository(db_path=get_db_path(career_ops_root), auto_init=True)
+
+    seed_records = [
+        (
+            "https://example.com/jobs/1",
+            "Acme Corp",
+            "Senior Data Engineer",
+            "evaluated",
+            4.2,
+            "2026-01-15",
+            "workspace/reports/001-acme-2026-01-15.md",
+            "workspace/output/001-acme.pdf",
+            "Good match",
+        ),
+        (
+            "https://example.com/jobs/2",
+            "BigTech",
+            "Machine Learning Engineer",
+            "applied",
+            3.8,
+            "2026-01-16",
+            "workspace/reports/002-bigtech-2026-01-16.md",
+            "workspace/output/002-bigtech.pdf",
+            "Applied",
+        ),
+        (
+            "https://example.com/jobs/3",
+            "StartupXYZ",
+            "Data Scientist",
+            "rejected",
+            2.1,
+            "2026-01-17",
+            "workspace/reports/003-startupxyz-2026-01-17.md",
+            None,
+            "Low score",
+        ),
+        (
+            "https://example.com/jobs/4",
+            "MegaCorp",
+            "Analytics Lead",
+            "interview",
+            4.5,
+            "2026-01-18",
+            "workspace/reports/004-megacorp-2026-01-18.md",
+            "workspace/output/004-megacorp.pdf",
+            "In process",
+        ),
+    ]
+
+    for idx, (url, company, role, status, score, app_date, rep_path, pdf_path, notes) in enumerate(
+        seed_records, start=1
+    ):
+        if rep_path:
+            full_rep = career_ops_root / rep_path
+            full_rep.parent.mkdir(parents=True, exist_ok=True)
+            full_rep.write_text(f"# Report {idx}", encoding="utf-8")
+        if pdf_path:
+            full_pdf = career_ops_root / pdf_path
+            full_pdf.parent.mkdir(parents=True, exist_ok=True)
+            full_pdf.write_bytes(b"%PDF-1.4\n")
+
+        vid, _ = repo.insert_vaga(
+            VagaInput(
+                original_url=url,
+                company=company,
+                role=role,
+                source_portal="greenhouse",
+            ),
+            descricao=f"Job description for {role} at {company}.",
         )
-        (career_ops_root / "reports" / f"{slug}.md").write_text(
-            f"# Report {num}", encoding="utf-8"
+        repo.update_lifecycle(
+            vaga_id=vid,
+            status=status,
+            score=score,
+            application_date=app_date,
+            report_path=rep_path,
+            cv_pdf_path=pdf_path,
+            notes=notes,
         )
 
     return career_ops_root

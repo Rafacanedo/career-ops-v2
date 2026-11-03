@@ -193,17 +193,17 @@ mcp_targets:
   - Dados
   - Analytics
   - Inteligência Artificial
-- name: Himalayas (Remote Brazil & Worldwide)
+- name: Himalayas (Remote Brazil & Americas)
   mcp: himalayas
   country: Brazil
-  worldwide: true
   queries:
   - Data Engineer
   - Analytics Engineer
   - Data Scientist
   - AI Engineer
-- name: Jobicy (Remote Data & AI)
+- name: Jobicy (Remote Latam & Worldwide)
   mcp: jobicy
+  geo: latam
   limit: 30
   queries:
   - data engineer
@@ -315,3 +315,18 @@ location_filter:
   - mexico
   - méxico
   - paris
+  - france
+  - frança
+  - united states only
+  - us only
+  - u.s. only
+  - usa only
+  - uk only
+  - europe only
+  - eu only
+  - germany
+  - alemanha
+  - portugal
+  - india
+  - índia
+  - bangalore

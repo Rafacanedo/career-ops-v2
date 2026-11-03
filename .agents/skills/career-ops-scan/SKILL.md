@@ -5,58 +5,39 @@ description: Scan Portals and Companies for New Job Listings.
 
 # Career-Ops Portal Scanner
 
-Use this workflow to find new open roles that match your title filters across the portals and companies defined in your configuration.
+Use this workflow to find new open roles across configured ATS portals, MCP job servers, GitHub repositories, and web searches, ingesting them directly into SQLite (`data/career_ops.db`) with automatic deduplication.
 
 ## Steps
 
-### 🗺️ 1. Load & Verify
-1. Run `career-ops sync-check` — notify user if warnings.
-2. Read `portals.yml` to get: `search_queries`, `tracked_companies`, `title_filter`.
-3. Read these dedup sources:
-   - `workspace/applications.md` — company+role already evaluated
-   - `workspace/pipeline.md` — URLs already in inbox
-   - `workspace/job-tracker.csv` — URLs already queued or processed in the external inbox
-
-### 🏢 2. Level 1 — Direct Company Scans (Most Reliable)
-For each enabled company in `tracked_companies` that has a `careers_url`:
-1. Use `read_url_content` for a static fetch attempt.
-2. If the result is blank or insufficient, use `browser_subagent` to navigate and extract all job listings.
-3. For each listing extract: `{title, url, company}`.
-4. If the `careers_url` returns a 404 or redirect, fall back to the company's `scan_query` and log for manual update.
-
-### ⚡ 3. Level 2 — Greenhouse API (Fast, Structured)
-For each enabled company in `tracked_companies` that has an `api:` field:
-1. Use `read_url_content` to fetch the Greenhouse JSON endpoint.
-2. Parse `jobs[].title` and `jobs[].absolute_url`.
-3. Merge results with Level 1 (deduplicate by URL).
-
-### 🌐 4. Level 3 — Web Search Discovery (Broad)
-For each enabled query in `search_queries`:
-1. Run `search_web` with the query string.
-2. Extract `{title, url, company}` from each result using these patterns:
-   - Ashby: `"Senior AI PM @ EverAI"` → title: `Senior AI PM`, company: `EverAI`
-   - Greenhouse: `"AI Engineer at Anthropic"` → title: `AI Engineer`, company: `Anthropic`
-   - Lever: `"Product Manager - AI @ Temporal"` → title: `Product Manager - AI`, company: `Temporal`
-3. Merge results with Level 1+2.
-
-### 🔍 5. Filter All Results
-Apply `title_filter` rules (case-insensitive):
-1. At least 1 keyword from `title_filter.positive` must match.
-2. Zero keywords from `title_filter.negative` may match.
-3. `seniority_boost` keywords raise priority but are not required.
-
-### 🔄 6. Deduplicate
-Against all 3 sources loaded in Step 1. Mark status for scan history:
-- New match → `added`
-- Filtered by title → `skipped_title`
-- Already seen → `skipped_dup`
-
-### 📥 7. Update Files
-1. Append NEW roles to `workspace/pipeline.md` under the "Pending" section:
+### 🗺️ 1. Pre-flight & Automated Scanner
+1. Run `career-ops sync-check` — notify user if warnings appear.
+2. Execute the deterministic multi-source scanner configured in `config/portals.yml`:
+   ```bash
+   career-ops scan
    ```
-   - [ ] {url} | {company} | {title}
+   *(Optional: pass `--source ats`, `--source mcp`, or `--source github` to scan a specific subset.)*
+   This automatically fetches postings, applies `title_filter` rules from `config/portals.yml`, normalizes URLs, and inserts new postings into SQLite with `status_triagem = 'queued'` while deduplicating against existing `canonical_url` records.
+
+### 🌐 2. Supplementary Web / Career Page Discovery (Optional)
+If the user requests additional web search discovery or direct career page scraping beyond the automated connectors:
+1. Read `config/portals.yml` to get `search_queries`, `tracked_companies`, and `title_filter`.
+2. For each enabled query or custom career page:
+   - Run `search_web` or fetch the page to extract `{title, url, company}`.
+   - Apply `title_filter` rules (case-insensitive):
+     1. At least 1 keyword from `title_filter.positive` must match.
+     2. Zero keywords from `title_filter.negative` may match.
+3. For each matching role found via web search, ingest it into SQLite using `career-ops intake`:
+   ```bash
+   career-ops intake "<url>" --company "<company>" --role "<title>"
    ```
-2. If the user wants the findings persisted in the spreadsheet inbox, append new rows to `workspace/job-tracker.csv` with `Processing Date` left blank so `career-ops scan-csv` can queue them through the supported CLI flow.
+   SQLite automatically handles `canonical_url` deduplication (`"is_new": false` if already tracked).
+
+### 📊 3. Verify Queued Results
+Run a quick check on the newly queued items:
+```bash
+career-ops list --status queued --limit 20
+career-ops stats
+```
 
 ---
 ## Final Output
@@ -64,14 +45,12 @@ Show a scan summary:
 ```
 Portal Scan — {YYYY-MM-DD}
 ━━━━━━━━━━━━━━━━━━━━━━━━━━
-Queries run: N
-Total found: N
-Filtered by title: N relevant
-Duplicates skipped: N
-New added to pipeline: N
+Total fetched: N
+Filtered out:  N
+New jobs saved to SQLite (queued): N
 
-  + {company} | {title} | {source}
+  + [{vaga_id}] {company} | {role} | {source_portal}
   ...
 
-→ Run /career-ops-pipeline to evaluate the new offers.
+→ Run /career-ops-pipeline to evaluate the queued offers.
 ```

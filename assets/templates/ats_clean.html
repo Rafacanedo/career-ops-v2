@@ -1,0 +1,207 @@
+<!DOCTYPE html>
+<html lang="{{ lang }}">
+<head>
+<meta charset="UTF-8">
+<title>{{ name }} - Resume</title>
+<style>
+  @page {
+    size: {{ format }};
+    margin: 0.3in;
+  }
+  * {
+    box-sizing: border-box;
+    margin: 0;
+    padding: 0;
+  }
+  body {
+    font-family: Arial, Helvetica, sans-serif;
+    color: #111111;
+    font-size: 9.5pt;
+    line-height: 1.35;
+    background: #ffffff;
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+  }
+  header {
+    text-align: center;
+    margin-bottom: 10px;
+    border-bottom: 1.5px solid #222222;
+    padding-bottom: 8px;
+  }
+  h1 {
+    font-size: 18pt;
+    font-weight: bold;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    margin-bottom: 2px;
+    color: #000000;
+  }
+  .headline {
+    font-size: 10pt;
+    font-weight: 600;
+    color: #333333;
+    margin-bottom: 4px;
+  }
+  .contact-info {
+    font-size: 9pt;
+    color: #444444;
+  }
+  .contact-info span {
+    margin: 0 4px;
+  }
+  .contact-info a {
+    color: #111111;
+    text-decoration: none;
+  }
+  section {
+    margin-bottom: 10px;
+  }
+  h2 {
+    font-size: 11pt;
+    font-weight: bold;
+    text-transform: uppercase;
+    border-bottom: 1px solid #444444;
+    padding-bottom: 2px;
+    margin-bottom: 6px;
+    letter-spacing: 0.4px;
+    color: #000000;
+  }
+  .summary-text {
+    text-align: justify;
+    margin-bottom: 4px;
+  }
+  .role-header {
+    display: flex;
+    justify-content: space-between;
+    font-weight: bold;
+    font-size: 9.5pt;
+    margin-top: 5px;
+    margin-bottom: 1px;
+  }
+  .role-sub {
+    display: flex;
+    justify-content: space-between;
+    font-size: 9pt;
+    font-style: italic;
+    color: #333333;
+    margin-bottom: 3px;
+  }
+  ul {
+    list-style-type: disc;
+    margin-left: 18px;
+    margin-bottom: 6px;
+  }
+  li {
+    margin-bottom: 2px;
+    text-align: justify;
+  }
+  .skills-category {
+    margin-bottom: 3px;
+  }
+  .skills-category strong {
+    font-weight: bold;
+  }
+  .education-entry, .project-entry {
+    margin-bottom: 4px;
+  }
+  .entry-header {
+    display: flex;
+    justify-content: space-between;
+    font-weight: bold;
+    font-size: 9.5pt;
+  }
+  .entry-sub {
+    font-size: 9pt;
+    font-style: italic;
+    color: #333333;
+  }
+</style>
+</head>
+<body>
+
+<header data-section="header">
+  <h1>{{ name }}</h1>
+  <div class="headline">{{ headline }}</div>
+  <div class="contact-info">
+    <span>{{ contact.location }}</span> &bull;
+    <span><a href="mailto:{{ contact.email }}">{{ contact.email }}</a></span>
+    {% if contact.phone %}
+    &bull; <span>{{ contact.phone }}</span>
+    {% endif %}
+    &bull; <span><a href="{{ contact.linkedin_url }}">LinkedIn</a></span>
+    {% if contact.portfolio_url %}
+    &bull; <span><a href="{{ contact.portfolio_url }}">Portfolio</a></span>
+    {% endif %}
+  </div>
+</header>
+
+<main>
+  <section data-section="summary">
+    <h2>{% if lang == 'pt-br' %}Resumo Profissional{% else %}Professional Summary{% endif %}</h2>
+    <p class="summary-text">{{ summary }}</p>
+  </section>
+
+  <section data-section="experience">
+    <h2>{% if lang == 'pt-br' %}Experiência Profissional{% else %}Work Experience{% endif %}</h2>
+    {% for role in experience %}
+    <div class="role-block">
+      <div class="role-header">
+        <span>{{ role.role }} &mdash; {{ role.company }}</span>
+        <span>{{ role.start_date }} &ndash; {{ role.end_date }}</span>
+      </div>
+      <div class="role-sub">
+        <span>{{ role.location }}</span>
+      </div>
+      <ul>
+        {% for bullet in role.bullets %}
+        <li>{{ bullet }}</li>
+        {% endfor %}
+      </ul>
+    </div>
+    {% endfor %}
+  </section>
+
+  <section data-section="skills">
+    <h2>{% if lang == 'pt-br' %}Habilidades{% else %}Skills{% endif %}</h2>
+    {% for category, items in skills.items() %}
+    <div class="skills-category">
+      <strong>{{ category|title }}:</strong> {{ items|join(', ') }}
+    </div>
+    {% endfor %}
+  </section>
+
+  {% if education %}
+  <section data-section="education">
+    <h2>{% if lang == 'pt-br' %}Educação{% else %}Education{% endif %}</h2>
+    {% for edu in education %}
+    <div class="education-entry">
+      <div class="entry-header">
+        <span>{{ edu.degree }} &mdash; {{ edu.institution }}</span>
+        <span>{{ edu.year }}</span>
+      </div>
+      {% if edu.details %}
+      <div class="entry-sub">{{ edu.details }}</div>
+      {% endif %}
+    </div>
+    {% endfor %}
+  </section>
+  {% endif %}
+
+  {% if projects %}
+  <section data-section="projects">
+    <h2>{% if lang == 'pt-br' %}Projetos Relevantes{% else %}Key Projects{% endif %}</h2>
+    {% for proj in projects %}
+    <div class="project-entry">
+      <div class="entry-header">
+        <span>{{ proj.name }}</span>
+        {% if proj.url %}<span><a href="{{ proj.url }}">Link</a></span>{% endif %}
+      </div>
+      <p class="entry-sub">{{ proj.description }} ({{ proj.technologies|join(', ') }})</p>
+    </div>
+    {% endfor %}
+  </section>
+  {% endif %}
+</main>
+
+</body>
+</html>

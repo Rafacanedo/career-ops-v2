@@ -11,7 +11,9 @@ Consolidates duplicated logic from the original .mjs scripts:
 
 from __future__ import annotations
 
+import hashlib
 import re
+import unicodedata
 from datetime import datetime
 
 from .config import CANONICAL_STATUSES, STATUS_RANK
@@ -203,3 +205,71 @@ def days_between(date_str_a: str, date_str_b: str) -> int:
 def get_status_rank(status: str) -> int:
     """Return the pipeline advancement rank for a status string."""
     return STATUS_RANK.get(status.lower(), 0)
+
+
+def compute_content_hash(text: str) -> str:
+    """Compute SHA-256 digest of whitespace-collapsed text to track JD revisions."""
+    return hashlib.sha256(" ".join(text.split()).encode("utf-8")).hexdigest()
+
+
+def slugify_token(text: str | None, max_len: int = 40) -> str:
+    """
+    Convert a string into an ATS-safe, filesystem-compliant kebab-case slug.
+    Translates technical tokens, removes diacritics, strips punctuation,
+    and enforces maximum length bounds.
+    """
+    if not text:
+        return "item"
+
+    s = text.lower().strip()
+
+    # Pre-translate known technical symbols and delimiters
+    replacements = {
+        "c++": "cpp",
+        "c#": "csharp",
+        ".net": "dotnet",
+        "/": "-",
+        "\\": "-",
+        "&": "and",
+        "+": "plus",
+        "@": "at",
+    }
+    for k, v in replacements.items():
+        s = s.replace(k, f" {v} ")
+
+    # Unicode NFKD decomposition to strip diacritics
+    s = unicodedata.normalize("NFKD", s)
+    s = "".join(c for c in s if not unicodedata.combining(c))
+
+    # Replace non-alphanumeric with hyphens
+    s = re.sub(r"[^a-z0-9]+", "-", s)
+
+    # Collapse multiple hyphens and trim
+    s = re.sub(r"-+", "-", s).strip("-")
+
+    # Enforce length ceiling without leaving trailing hyphens
+    if len(s) > max_len:
+        s = s[:max_len].rstrip("-")
+
+    return s or "item"
+
+
+def build_deliverable_slugs(role: str | None, company: str | None) -> tuple[str, str]:
+    """Return standardized (role_slug, company_slug) tuple for deliverable naming."""
+    role_slug = slugify_token(role or "role", max_len=40)
+    company_slug = slugify_token(company or "company", max_len=30)
+    return role_slug, company_slug
+
+
+def build_report_filename(seq_num: int, role: str | None, company: str | None) -> str:
+    """Generate standardized markdown report filename for a vacancy."""
+    role_slug, company_slug = build_deliverable_slugs(role, company)
+    return f"{seq_num:03d}-{role_slug}-{company_slug}.md"
+
+
+def build_cv_filename(seq_num: int, candidate: str, role: str | None, company: str | None) -> str:
+    """Generate standardized single-page ATS CV PDF filename for a vacancy."""
+    cand_slug = slugify_token(candidate or "candidate", max_len=30)
+    role_slug, company_slug = build_deliverable_slugs(role, company)
+    return f"{seq_num:03d}-{cand_slug}-{role_slug}-{company_slug}.pdf"
+

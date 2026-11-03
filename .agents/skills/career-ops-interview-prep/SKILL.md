@@ -24,7 +24,7 @@ Accept any of:
 ## Steps
 
 ### 1. Identify the Offer
-1. Resolve the matching report in `workspace/reports/`.
+1. Resolve the matching report in `output/reports/`.
 2. Prefer exact report ID match when provided.
 3. Otherwise search by company, role, URL, and report header.
 4. If no matching report exists, ask the user to run `/career-ops-evaluate` first or paste the full JD.
@@ -112,5 +112,5 @@ Based on: Report #{NNN} | Score: {X.X}/5 | Archetype: {type}
 
 ---
 ## Final Output
-1. Automatically save the generated interview prep content to a new Markdown file in the `workspace/reports/` directory. Name the file using the format `{ID}-{company}-interview-prep.md` (e.g., `051-tractian-interview-prep.md`).
+1. Automatically save the generated interview prep content to a new Markdown file in the `output/reports/` directory. Name the file using the format `{ID}-{company}-interview-prep.md` (e.g., `051-tractian-interview-prep.md`).
 2. Show the nine questions and answers to the user, list any story-bank additions made, confirm that the interview prep document was saved, and confirm that tracker status was not changed.
