@@ -1,7 +1,7 @@
 [project]
-name = "career-ops-python"
+name = "career-ops-v2"
 version = "1.0.0"
-description = "Python CLI tools for career-ops pipeline management"
+description = "Deterministic Python CLI and AI agent harness for career pipeline management"
 readme = "README.md"
 requires-python = ">=3.11"
 dependencies = [

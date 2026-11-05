@@ -5,9 +5,6 @@ description: Generate an optimized professional summary and select matching skil
 
 # Career-Ops Gupy Profile Workflow
 
-> [!IMPORTANT]
-> **Constraint Precedence:** Before starting, you **MUST** read and apply all rules in [GEMINI.md](file:///c:/Users/Rafael.Canedo/Projects/career-ops-python/GEMINI.md). The rules in `GEMINI.md` take absolute precedence over this workflow in case of conflict.
-
 Use this workflow to extract insights from a job report and generate customized text to update your Gupy profile for maximum match probability.
 
 ## Steps

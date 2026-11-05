@@ -1,5 +1,5 @@
 """
-test_all.py — Integration test suite for career-ops-python.
+test_all.py — Integration test suite for career-ops-v2.
 """
 
 from __future__ import annotations

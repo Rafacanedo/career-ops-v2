@@ -1,5 +1,5 @@
 """
-config.py — Path resolution and configuration loading for career-ops-python.
+config.py — Path resolution and configuration loading for career-ops-v2.
 
 Resolves CAREER_OPS_ROOT from environment variable or CLI argument.
 Loads states.yml for canonical status definitions.
@@ -29,7 +29,7 @@ def resolve_root(root: str | None = None) -> Path:
     Priority order:
     1. The explicitly passed `root` argument (from --root CLI flag)
     2. CAREER_OPS_ROOT environment variable
-    3. Current working directory — works when you `cd career-ops-python && uv run career-ops`
+    3. Current working directory — works when you `cd career-ops-v2 && uv run career-ops`
     4. Package install location ancestor — src/career_ops/config.py → ../../.. = project root
     """
     if root:

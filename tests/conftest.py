@@ -1,5 +1,5 @@
 """
-conftest.py — Shared pytest fixtures for career-ops-python tests.
+conftest.py — Shared pytest fixtures for career-ops-v2 tests.
 """
 
 from __future__ import annotations

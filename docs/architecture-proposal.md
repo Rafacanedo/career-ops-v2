@@ -93,7 +93,7 @@ flowchart LR
     D -- sumiu do board --> G[Marcar closed_at]
 ```
 
-- Reaproveita direto [connectors.py](file:///c:/Users/Rafael.Canedo/Projects/career-ops-python/src/career_ops/fetcher/connectors.py).
+- Reaproveita direto [connectors.py](../src/career_ops/fetcher/connectors.py).
 - **ATS com API pública de leitura:** Greenhouse, Lever, Ashby, Recruitee, SmartRecruiters, Workable (Breezy não traz JD completa no `/json`).
 - **Problema principal = descoberta de empresas (board tokens).** As APIs exigem saber o token. Fontes: sitemap/busca por `boards.greenhouse.io/*`, `jobs.lever.co/*`, `jobs.ashbyhq.com/*`; listas comunitárias; e permitir que o usuário sugira empresas (o token vira global).
 - Enriquecimento com LLM só em vagas **novas** (hash), barato com Flash.
@@ -141,7 +141,7 @@ sequenceDiagram
     API->>U: Aplicar (deep link + respostas prontas p/ copiar)
 ```
 
-- O prompt do [career-ops-evaluate SKILL.md](file:///c:/Users/Rafael.Canedo/Projects/career-ops-python/.agents/skills/career-ops-evaluate/SKILL.md) vira um **system prompt + response schema**; o "Completion Gate" vira validação Pydantic com retry.
+- O prompt do [career-ops-evaluate SKILL.md](../.agents/skills/career-ops-evaluate/SKILL.md) vira um **system prompt + response schema**; o "Completion Gate" vira validação Pydantic com retry.
 - **Seção D (Comp & Market)** precisa de grounding: usar **Gemini com Google Search grounding**.
 - CV: Gemini gera **JSON** (bullets selecionados/reescritos), renderização é **determinística** (template HTML + WeasyPrint/Playwright) — garante as regras de 1 página, margens, ordem de seções.
 

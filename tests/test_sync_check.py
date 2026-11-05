@@ -26,7 +26,7 @@ class TestRunSyncCheck:
         (career_ops_root / "cv.md").write_text("# My CV\n" + "x" * 300, encoding="utf-8")
         profile = career_ops_root / "config" / "profile.yml"
         profile.write_text(
-            "full_name: Rafael Canedo\nemail: test@test.com\nlocation: BR\n",
+            "full_name: Alex Chen\nemail: test@test.com\nlocation: BR\n",
             encoding="utf-8",
         )
         errors, warnings = run_sync_check(career_ops_root)

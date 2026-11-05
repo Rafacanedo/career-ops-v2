@@ -1,42 +1,39 @@
-# Architecture
+# Architecture Overview
+
+For the complete technical specification and design document, see [Decoupled SQLite Relational Architecture & Storage Boundary](../../docs/designs/decoupled-sqlite-architecture.md).
 
 ## System Overview
 
-The active implementation is a Python CLI centered on the `workspace/` user-data contract.
+Career-Ops v2 coordinates four primary layers across a strict boundary between a deterministic Python CLI core and the AI agent harness:
 
 ```text
-content/cv.md + config/profile.yml + workspace/*
-                |
-                v
-          career-ops CLI
-                |
-    +-----------+-----------+-----------+
-    |           |           |           |
- verify    normalize    merge/export  dashboard
-                |
-                v
-     workspace/applications.md
+[Public ATS APIs / MCP Servers / URL Intake]
+                     │
+                     ▼
+           career-ops CLI (Python)
+                     │
+         ┌───────────┴───────────┐
+         ▼                       ▼
+  Local SQLite Database     Human Deliverables
+  (data/career_ops.db)      (output/ & reports/)
+  - vagas                   - output/cv/{seq}-{role}-{company}.pdf
+  - vaga_descricoes         - output/reports/{seq}-{role}-{company}.md
+  - tracking_lifecycle      - output/dashboard.html
 ```
 
-## Core Data Flow
+## Storage Layers
 
-- `workspace/pipeline.md` is the pending URL inbox.
-- `workspace/job-tracker.csv` is the optional spreadsheet-synced tracker.
-- `workspace/applications.md` is the application source of truth.
-- `workspace/reports/` stores report markdown.
-- `workspace/output/` stores generated artifacts such as PDFs, CSV exports, and dashboard HTML.
-- `config/states.yml` is the canonical pipeline state definition.
+1. **Embedded Relational State (`data/career_ops.db`)**:
+   - `vagas`: Fast metadata indexed by `id`, `seq_num`, and `canonical_url`.
+   - `vaga_descricoes`: Isolated full-text JD payloads with SHA-256 content deduplication.
+   - `tracking_lifecycle`: Application status, fit scores, archetype, notes, and artifact paths.
 
-## Current Commands
+2. **Local Deliverables & Artifacts (`output/`)**:
+   - `output/cv/`: Tailored, ATS-optimized single-page PDF resumes compiled with Playwright.
+   - `output/reports/`: In-depth qualitative evaluation reports and gap analysis.
+   - `output/dashboard.html`: Standalone interactive HTML dashboard.
 
-- `verify`, `normalize`, `dedup`, and `merge` maintain tracker integrity.
-- `scan-csv` queues new opportunities from `workspace/job-tracker.csv`.
-- `cv` wraps `generate-pdf.mjs` for PDF generation.
-- `export` writes CSV exports from the current workspace tracker files.
-- `dashboard build` generates a static HTML dashboard from `workspace/applications.md`.
-
-## Legacy Notes
-
-- The old Node `.mjs` utility naming in earlier docs is obsolete; the supported surface is the Python CLI.
-- References to `data/` as the primary tracker location are obsolete; the current contract uses `workspace/`.
-- The old Go TUI dashboard is not part of this repository.
+3. **User Identity & Experience (`content/` and `config/`)**:
+   - `config/profile.yml`: Single source of truth for candidate identity, contact info, and target roles (git-ignored).
+   - `content/cv.md`: Full canonical resume history and experience (git-ignored).
+   - `content/story-bank.md`: Structured STAR+R interview story catalog (git-ignored).

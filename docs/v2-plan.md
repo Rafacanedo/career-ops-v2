@@ -69,7 +69,7 @@ career-ops/                      # repo público
 ```
 
 > [!NOTE]
-> As regras que hoje estão no `GEMINI.md` específicas suas (nome do arquivo do CV, 8 bullets na Atrium, idiomas) passam para o **`profile.yml` do usuário**, em uma seção `cv_rules`. As skills leem dali. Assim o `AGENTS.md` fica genérico.
+> As regras que hoje estão no `GEMINI.md` específicas suas (nome do arquivo do CV, 8 bullets na empresa atual, idiomas) passam para o **`profile.yml` do usuário**, em uma seção `cv_rules`. As skills leem dali. Assim o `AGENTS.md` fica genérico.
 
 ---
 

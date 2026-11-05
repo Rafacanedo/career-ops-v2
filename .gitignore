@@ -6,6 +6,8 @@ dist/
 wheels/
 *.egg-info
 .pytest_cache/
+.coverage
+htmlcov/
 .venv/
 .env
 *.log
@@ -15,8 +17,13 @@ wheels/
 *.db-journal
 *.db-wal
 *.db-shm
+*.sqlite
+*.sqlite3
 
-# User local data
+# Node.js
+node_modules/
+
+# User local data & personal deliverables
 data/
 output/
 reports/
@@ -25,6 +32,7 @@ content/
 config/profile.yml
 cv.md
 *.pdf
+docs/gupy_profile_ready_to_use.md
 
 # Swarm & Review artifacts
 *_report.md
@@ -34,5 +42,8 @@ design_draft.md
 # System & IDE
 .gemini/
 .claude/
+.idea/
+.vscode/
+*.local
 .DS_Store
 Thumbs.db

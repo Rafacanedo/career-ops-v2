@@ -10,14 +10,14 @@ def valid_payload():
     return CVPayload(
         format="a4",
         lang="en",
-        name="Rafael Albuquerque Canedo",
+        name="Alex Chen",
         headline="Staff Software Engineer & AI Systems Architect",
         contact=ContactInfo(
-            email="rafael@example.com",
+            email="alex@example.com",
             phone="+55 11 99999-9999",
             location="São Paulo, Brazil",
-            linkedin_url="https://linkedin.com/in/rafacanedo",
-            portfolio_url="https://github.com/rafacanedo",
+            linkedin_url="https://linkedin.com/in/alexchen",
+            portfolio_url="https://github.com/alexchen",
         ),
         summary=(
             "Staff Engineer with 10+ years architecting distributed systems, RAG pipelines, "
@@ -26,7 +26,7 @@ def valid_payload():
         ),
         experience=[
             WorkRole(
-                company="Construtora Atrium",
+                company="TechCorp Solutions",
                 role="Principal Solutions Architect",
                 location="São Paulo, Brazil",
                 start_date="2022",
@@ -66,7 +66,7 @@ def valid_payload():
                 name="Career-Ops",
                 description="Autonomous job discovery and ATS resume tailoring CLI pipeline.",
                 technologies=["Python", "SQLite", "Playwright"],
-                url="https://github.com/rafacanedo/career-ops",
+                url="https://github.com/example/career-ops",
             )
         ],
     )
@@ -87,8 +87,8 @@ def test_schema_validation_rejection():
 
 def test_render_html(valid_payload):
     html = render_html(valid_payload)
-    assert "Rafael Albuquerque Canedo" in html
-    assert "Construtora Atrium" in html
+    assert "Alex Chen" in html
+    assert "TechCorp Solutions" in html
     assert "Professional Summary" in html
     assert "data-section=\"header\"" in html
     assert "data-section=\"experience\"" in html

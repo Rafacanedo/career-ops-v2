@@ -1,5 +1,5 @@
 """
-utils.py — Shared utility functions for career-ops-python.
+utils.py — Shared utility functions for career-ops-v2.
 
 Consolidates duplicated logic from the original .mjs scripts:
   - normalizeCompany()     → normalize_company()

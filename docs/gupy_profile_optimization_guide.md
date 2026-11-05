@@ -63,7 +63,7 @@ Utilize os títulos padrão de mercado mais buscados por recrutadores:
 ### 4.2. Resumo Profissional ("Sobre Você")
 O resumo deve ter de **3 a 4 parágrafos**, combinando tempo de experiência, stack técnica, áreas de negócio e impacto quantificável.
 
-#### Template Otimizado (Rafael Canedo - Exemplo):
+#### Template Otimizado (Exemplo Recomendado):
 ```text
 Engenheiro de Dados e Analytics Senior com 6+ anos de experiência na concepção de arquiteturas de dados escaláveis, pipelines ETL/ELT e soluções de Business Intelligence. Trajetória com atuação internacional e remota (EUA e Brasil), especializada em migração de sistemas legados para infraestruturas de dados em nuvem.
 
@@ -71,7 +71,7 @@ Forte domínio técnico em Python e SQL avançado para modelagem dimensional, in
 
 Sólida vivência em segmentos de Fintech, E-commerce, SEO & Web Analytics e Gestão Financeira. Histórico comprovado na redução de até 90% em tarefas operacionais manuais, aumento de 15% em tráfego web e implementação de rotinas de CI/CD com 99.9% de confiabilidade em dados de suporte a decisões executivas.
 
-Formado em Engenharia de Produção pela UFMG com Certificação Profissional em Data Science e Machine Learning pelo MIT.
+Formado em Engenharia com Especialização Profissional em Data Science e Machine Learning.
 ```
 
 ---
@@ -81,7 +81,7 @@ Formado em Engenharia de Produção pela UFMG com Certificação Profissional em
 * **Descrição das Atividades:** Utilize o formato **Ação + Ferramenta + Impacto Numérico**.
 
 #### Exemplo de Estruturação:
-* **Analytics Data Engineer — Construtora Atrium (Jan 2025 – Presente)**
+* **Analytics Data Engineer — Tech Enterprise Corp (Jan 2024 – Presente)**
   * Arquitetura e construção da infraestrutura de dados cloud do zero, migrando processos de planilhas para Data Warehouse centralizado em **DuckDB**.
   * Desenvolvimento de pipelines de dados automatizados em **Python** e **SQL**, integrando sistemas legados e **APIs REST**, gerando redução de **90% nas tarefas diárias**.
   * Criação de dashboards em **Power BI** para acompanhamento de custos e supply chain em tempo real para o nível executivo.

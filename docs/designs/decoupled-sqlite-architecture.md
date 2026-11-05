@@ -114,7 +114,7 @@ All job parsing is deterministic rule-based code without AI model invocation:
    - For unstructured text pasted by the user, the agent harness extracts structured parameters (`--company`, `--role`, `--url`, `--description`) in the agent turn before passing them to `career-ops intake`. The Python CLI performs no heuristic inference.
 
 #### C. Normalization Utilities (`src/career_ops/utils.py`)
-* **Consolidates Normalization Algorithms**: Reuses existing canonicalization utilities in [`src/career_ops/utils.py`](file:///c:/Users/rafac/Projects/career-ops-v2/src/career_ops/utils.py) and adds content digest hashing:
+* **Consolidates Normalization Algorithms**: Reuses existing canonicalization utilities in [`src/career_ops/utils.py`](../../src/career_ops/utils.py) and adds content digest hashing:
   * **`normalize_url(url: str) -> str`**: Strips tracking parameters (`utm_*`, `ref`, `source`, `fbclid`), normalizes HTTP schemes and lowercase hostnames, and resolves platform-specific canonical paths (Greenhouse board job tokens, Lever posting IDs, Ashby board routes, Gupy portal IDs).
   * **`normalize_company(name: str) -> str`**: Lowercases, strips punctuation, and removes legal entity suffixes (`inc`, `llc`, `ltd`, `ltda`, `sa`, `s.a.`, `gmbh`, `corp`).
   * **`normalize_role(title: str) -> str`**: Lowercases, strips punctuation, and strips bracketed/parenthetical metadata tags (e.g., `[Remote]`, `(100% Remoto)`, `[CLT]`, `(Brasil)`).

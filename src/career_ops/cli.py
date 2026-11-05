@@ -1,5 +1,5 @@
 """
-cli.py — Click entry-point for career-ops-python.
+cli.py — Click entry-point for career-ops-v2.
 
 All subcommands share the global --root option, which points to
 the career-ops project directory (or CAREER_OPS_ROOT env var).
@@ -54,7 +54,7 @@ from .verify import verify_cmd
     metavar="PATH",
     help="Path to the career-ops project root. Defaults to CAREER_OPS_ROOT env var or cwd.",
 )
-@click.version_option(package_name="career-ops-python")
+@click.version_option(package_name="career-ops-v2")
 @click.pass_context
 def cli(ctx: click.Context, root: str | None) -> None:
     """career-ops Python tools — SQLite relational pipeline, ingestion, and tracking."""

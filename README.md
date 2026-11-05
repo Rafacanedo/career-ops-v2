@@ -1,80 +1,91 @@
-# career-ops-python 🚀
+# Career-Ops v2 🚀
 
-A comprehensive Python-powered CLI and agentic workflow system for managing your career pipeline. This project automates the tedious parts of job hunting: scanning and ingesting postings into an embedded SQLite relational core, evaluating job descriptions against your profile, and generating tailored ATS-optimized resumes.
+[![Python 3.11+](https://img.shields.io/badge/python-3.11+-blue.svg)](https://www.python.org/downloads/)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
+[![Architecture: SQLite WAL](https://img.shields.io/badge/architecture-local--first%20SQLite-green.svg)](docs/designs/decoupled-sqlite-architecture.md)
 
-> [!NOTE]
-> This project uses a decoupled, local-first SQLite relational architecture (`data/career_ops.db`) designed to protect AI agent context windows from token bloat while keeping human deliverables (evaluation reports and PDF resumes) on the filesystem.
+A local-first, AI-assisted job hunting co-pilot and pipeline management system. Career-Ops v2 pairs a fast, deterministic Python/SQLite core with agentic AI workflows to automate the tedious parts of your job hunt: discovering opportunities, evaluating real profile fit, generating tailored single-page ATS resumes, and preparing for interviews—all while keeping your personal data completely private on your machine.
 
-## System Overview
+---
 
-The system architecture coordinates four primary layers across a strict boundary between the deterministic Python core and the AI agent harness:
-1. **Deterministic Extraction & Ingestion**: The ATS fetcher subsystem (`src/career_ops/fetcher`) interfaces with public ATS REST APIs (Greenhouse, Lever, Ashby, Workable, SmartRecruiters, Recruitee, Breezy, Inhire, Eightfold), HTTP MCP servers (Gupy, Himalayas, Jobicy, JobStack), GitHub issue repositories, and Schema.org JSON-LD / OpenGraph HTML fallbacks—streaming normalized postings directly into SQLite without LLM API calls.
-2. **Embedded Relational State (`data/career_ops.db`)**: The core storage engine (`src/career_ops/db.py` and `src/career_ops/repository.py`) persists opportunities across a normalized 3-table schema (`vagas`, `vaga_descricoes`, and `tracking_lifecycle`) in SQLite WAL mode with atomic `BEGIN IMMEDIATE` transactions.
-3. **Context-Efficient Querying & Deduplication**: Database-enforced `UNIQUE(canonical_url)` constraints and content-hash revision tracking prevent duplicates while CLI commands (`list`, `show`, `track`, `stats`) return compact metadata payloads (<250 tokens) unless full descriptions are explicitly requested (`show <id> --full`).
-4. **Deliverables, Rendering & Export**: Evaluation reports (`workspace/reports/`) and tailored resume PDFs (`workspace/output/`, rendered via Node.js Playwright `generate-pdf.mjs`) reside on the filesystem, alongside on-demand CSV, JSON, and standalone HTML dashboard exports (`workspace/output/dashboard.html`).
+## 💡 Why Career-Ops?
 
-## Subdirectories & System Boundaries
+Searching for tech roles (Engineering, Data, AI/ML, Product) is often fragmented and time-consuming:
+- Tracking dozens of openings across disjointed platforms (Greenhouse, Lever, Ashby, Workable, Gupy, etc.).
+- Manually rewriting resumes for ATS algorithms without accidentally hallucinating qualifications.
+- Spending hours applying to roles that turn out to be poor fits in seniority or tech stack.
+- Overloading AI context windows with massive spreadsheet dumps and markdown tables.
 
-- `[src](./src/README.md)`: Intermediate source root grouping the Python implementation packages.
-  - `[src/career_ops](./src/career_ops/README.md)`: Core package providing the Click CLI, SQLite connection manager (`db.py`), transactional repository (`repository.py`), normalization utilities (`utils.py`), and artifact generators.
-  - `[src/career_ops/fetcher](./src/career_ops/fetcher/README.md)`: Deterministic ingestion engine implementing ATS/MCP/GitHub connectors and `FetchOrchestrator`.
-- `[docs/designs](./docs/designs/SITEMAP.md)`: Technical architecture and design specifications, including `[decoupled-sqlite-architecture.md](./docs/designs/decoupled-sqlite-architecture.md)`.
-- `data/`: Local runtime directory holding `data/career_ops.db` (excluded from Git via `.gitignore`).
-- `workspace/`: Deliverable storage directory containing evaluation reports (`reports/`), generated resumes and exports (`output/`), and automated SQLite backups (`backups/`).
-- `config/`: Pipeline configuration files defining canonical application states (`states.yml`), tracked job portals (`portals.yml`), and user profile parameters (`profile.yml`).
-- `assets/`: Templates, fonts, and scripts for HTML-to-PDF resume compilation (`assets/templates/cv-template.html`, `generate-pdf.mjs`).
+**Career-Ops v2 solves this with a clean, decoupled architecture:**
+- 📥 **Automated Ingestion**: Fetch postings directly from public ATS REST APIs and Model Context Protocol (MCP) servers straight into a local SQLite database—zero brittle web scrapers and zero token costs.
+- 🎯 **Objective Fit Evaluation**: Evaluates job descriptions against your real resume, calculates an objective 1–5 fit score, and detects requirements gaps before you spend time applying.
+- 📄 **ATS-Optimized 1-Page PDF Resumes**: Generates clean, single-page, ATS-parseable PDF resumes tailored to the job description's keywords using Playwright and HTML/CSS templates.
+- 🎤 **STAR+R Interview Prep**: Surfaces targeted behavioral and technical questions, matching them with stories from your personal career story bank.
+- 🔒 **100% Private & Local-First**: Your CV, target salaries, applications, and confidential notes live in a local SQLite database (`data/career_ops.db`) and are strictly git-ignored.
+- ⚡ **Context-Window Efficient**: Built specifically for AI coding assistants (Google Antigravity, Claude Code, Gemini CLI, Cursor). The CLI returns compact metadata payloads (<250 tokens), preventing context bloat.
 
-## Global Invariants
+---
 
-- **Root Precedence**: Project root directory resolution (`resolve_root`) strictly follows: explicit `--root` CLI argument > `CAREER_OPS_ROOT` environment variable > current working directory if `data/career_ops.db`, `config/states.yml`, or `pyproject.toml` exists > 3-level package ancestor > cwd fallback.
-- **Deterministic Core**: The Python package executes deterministically with zero external LLM SDK dependencies or model API calls; all qualitative scoring and resume tailoring occur inside the AI agent harness.
-- **Normalized 3-Table Schema**:
-  - `vagas`: Stores lightweight opportunity metadata (`id`, `canonical_url`, `original_url`, `company`, `company_norm`, `role`, `role_norm`, `source_portal`, `location`, `remote_type`, `status_triagem`, `created_at`, `updated_at`).
-  - `vaga_descricoes`: Isolates full-text payloads (`vaga_id`, `description_raw`, `description_clean`, `content_hash`, `fetched_at`) with `ON DELETE CASCADE`.
-  - `tracking_lifecycle`: Tracks candidate lifecycle state (`vaga_id`, `status`, `score`, `archetype`, `application_date`, `status_updated_at`, `report_path`, `cv_pdf_path`, `notes`) with `ON DELETE CASCADE`.
-- **Canonical URL Deduplication & Revision Tracking**: `vagas.canonical_url` enforces `UNIQUE` integrity. Collisions preserve the oldest `id` and `created_at`, backfilling or updating `vaga_descricoes` only when incoming text is non-empty and its SHA-256 `content_hash` changes.
-- **Status Progression Hierarchy**: Active lifecycle stages (`evaluated`: 2 < `applied`: 3 < `interview`: 4 < `offer`: 5) never downgrade to a lower-ranked active stage during `update_lifecycle`, while terminal exit states (`rejected`: 1, `discarded`: 0, `skip`: 0) are permitted from any prior active stage.
-- **Referential & Deliverable Integrity**: All non-empty `report_path` and `cv_pdf_path` pointers in `tracking_lifecycle` are verified against physical files on disk via `career-ops verify`.
+## 🔄 The 4-Step Workflow
 
-## Global Side Effects
+```text
+  1. INGEST               2. EVALUATE              3. DELIVER               4. TRACK
+┌──────────────┐        ┌──────────────┐        ┌──────────────┐        ┌──────────────┐
+│  career-ops  │ ────►  │ /career-ops- │ ────►  │ /career-ops- │ ────►  │  career-ops  │
+│ intake <url> │        │   evaluate   │        │      cv      │        │  dashboard   │
+└──────────────┘        └──────────────┘        └──────────────┘        └──────────────┘
+  Fetches ATS             Scores match             Compiles 1-page         Visualizes
+  data to SQLite          & gap report             tailored PDF            pipeline state
+```
 
-- **Local SQLite Mutations**: Creates and updates `data/career_ops.db` using `PRAGMA journal_mode=WAL`, `PRAGMA foreign_keys=ON`, `PRAGMA busy_timeout=5000`, and `BEGIN IMMEDIATE` transactions.
-- **Database Backups**: `CareerOpsRepository.backup_db()` writes timestamped online SQLite backups to `workspace/backups/career_ops_<timestamp>.db`.
-- **Outbound HTTP / API Queries**: Ingestion connectors query external job boards, ATS APIs, MCP JSON-RPC endpoints, and GitHub Issues APIs.
-- **Subprocess Execution**: Invokes Node.js Playwright runtime (`generate-pdf.mjs`) to render PDF resumes into `workspace/output/`.
-- **Export Compilation**: Builds self-contained HTML dashboards (`workspace/output/dashboard.html`), JSON dumps (`workspace/output/applications.json`), and semicolon-delimited UTF-8-BOM CSV exports (`workspace/output/applications.csv`).
+1. **Ingest / Scan**: Provide a job posting URL or run `career-ops scan` to discover new openings from your tracked companies.
+2. **Evaluate**: The AI agent reads the job requirements, compares them against your experience (`content/cv.md`), and generates a structured fit report.
+3. **Generate Deliverables**: Compile a customized, ATS-friendly PDF resume (`output/cv/`) and generate STAR+R interview preparation notes.
+4. **Track & Apply**: Track application status progression (`Applied` → `Interview` → `Offer`) and view your interactive pipeline dashboard (`output/dashboard.html`).
 
-## 🛠 Requirements
+---
 
+## 🚀 Quick Start
+
+### 1. Prerequisites
 - **Python 3.11+**
-- [**`uv`**](https://docs.astral.sh/uv/) (recommended for dependency management)
-- **Node.js** (required for `generate-pdf.mjs` Playwright PDF rendering)
+- [**`uv`**](https://docs.astral.sh/uv/) (recommended) or standard `pip`
+- **Node.js 18+** (for Playwright resume rendering)
 
-## 🚀 Installation
+### 2. Installation
 
 ```bash
 # Clone the repository
-git clone https://github.com/Rafacanedo/career-ops-python.git
-cd career-ops-python
+git clone https://github.com/Rafacanedo/career-ops-v2.git
+cd career-ops-v2
 
-# Install dependencies and the CLI
+# Install dependencies
 uv sync
-
-# Initialize the SQLite database
-uv run career-ops init
+# Or with pip: pip install -e .
 ```
 
-## ⚙️ Configuration
+### 3. Setup Your Profile & Content
 
-By default, the CLI resolves the project root from the current working directory. If running from outside the project folder, set `CAREER_OPS_ROOT` or pass `--root`:
+```bash
+# Create your local profile configuration
+cp config/profile.example.yml config/profile.yml
 
-```powershell
-# Windows (PowerShell)
-$env:CAREER_OPS_ROOT = "C:\Users\rafac\Projects\career-ops-v2"
-career-ops --root . verify
+# Initialize the local SQLite database
+career-ops init
+
+# Verify setup consistency
+career-ops sync-check
 ```
 
-## ⌨️ CLI Commands
+- Edit `config/profile.yml` with your contact info, target roles, and narrative proof points.
+- Place your canonical resume experience in `content/cv.md` (git-ignored).
+- (Optional) Add your STAR+R interview stories to `content/story-bank.md`.
+
+---
+
+## ⌨️ CLI Reference
+
+The deterministic Python CLI handles all database operations, ATS network ingestion, and PDF rendering:
 
 | Command | Description |
 |:---|:---|
@@ -83,68 +94,134 @@ career-ops --root . verify
 | `career-ops intake-raw` | Ingests pre-extracted job details (`--company`, `--role`, `--url`, `--desc-file`) directly into SQLite. |
 | `career-ops scan` | Runs configured ATS, MCP, and GitHub scanners (`config/portals.yml`) and streams new postings into SQLite (alias: `fetch`). |
 | `career-ops list` | Lists compact job metadata (`--status`, `--limit`, `--offset`, `--format json\|table`) without loading full descriptions. |
-| `career-ops show <id>` | Displays metadata for a single `vaga_id` and optionally includes the full job description (`--full`). |
+| `career-ops show <id>` | Displays metadata for a single `vaga_id` or sequence number, optionally with the full JD (`--full`). |
 | `career-ops track <id>` | Updates candidate lifecycle state (`--status`, `--score`, `--archetype`, `--application-date`, `--report`, `--pdf`, `--notes`). |
 | `career-ops stats` | Outputs pipeline count summaries grouped by status and average fit score. |
 | `career-ops export` | Exports SQLite tracker records to `csv`, `json`, or `html` in `workspace/output/`. |
 | `career-ops dashboard build` | Builds the self-contained interactive HTML dashboard at `workspace/output/dashboard.html`. |
-| `career-ops cv` | Invokes Playwright (`generate-pdf.mjs`) to render tailored HTML into an ATS-optimized PDF in `workspace/output/`. |
+| `career-ops cv` | Invokes Playwright to compile tailored HTML into an ATS-optimized PDF in `output/cv/`. |
 | `career-ops verify` | Audits SQLite `PRAGMA integrity_check`, required tables, and disk existence of referenced report/PDF files. |
-| `career-ops sync-check` | Validates setup consistency (`content/cv.md`, `config/profile.yml`, `data/career_ops.db`, and digest freshness). |
+| `career-ops sync-check` | Validates setup consistency (`content/cv.md`, `config/profile.yml`, `data/career_ops.db`). |
 
-## 🤖 Agentic Workflows
+---
 
-This repository includes `.agents/skills` that turn an AI assistant into a context-efficient career coach:
+## 🤖 Agentic Workflows & Skills
 
-- `/career-ops`: Checks setup (`career-ops sync-check` / `career-ops init`) and routes to workflows or CLI commands.
-- `/career-ops-archetypes`: Derives 5 strategic target role personas from `content/cv.md` and `config/profile.yml`.
-- `/career-ops-scan`: Runs `career-ops scan` and supplementary discovery to populate queued opportunities in SQLite.
-- `/career-ops-pipeline`: Batch-evaluates queued opportunities (`career-ops list --status queued`) using on-demand description loading (`career-ops show <id> --full`).
-- `/career-ops-evaluate`: Evaluates a job against your profile, writes `workspace/reports/report_<id>.md`, and updates SQLite via `career-ops track`.
-- `/career-ops-cv`: Renders a keyword-optimized PDF resume (`career-ops cv`) and links it via `career-ops track <id> --pdf`.
-- `/career-ops-apply`: Drafts tailored answers for application forms from Section G and updates status to `applied`.
-- `/career-ops-interview-prep`: Generates 9 grounded recruiter/interview questions and STAR+R answers from an evaluation report.
-- `/career-ops-gupy`: Generates a 1450-character PT-BR summary and top 3 matching skills for Gupy profiles.
-- `/career-ops-tracker`: Displays pipeline metrics and recent applications via `career-ops stats` and `career-ops list`.
+Career-Ops includes pre-configured agent workflows (`.agents/skills/`) compatible with Google Antigravity, Claude Code, and other agent harnesses:
+
+- **`/career-ops`**: Main entrypoint; checks setup integrity and routes to workflows or CLI commands.
+- **`/career-ops-scan`**: Scans tracked company portals and queues matching opportunities in SQLite.
+- **`/career-ops-pipeline`**: Evaluates queued opportunities in batches using lightweight metadata queries.
+- **`/career-ops-evaluate`**: Deep qualitative assessment of a job against your profile; writes report to `output/reports/`.
+- **`/career-ops-cv`**: Renders a keyword-aligned, 1-page ATS resume (`output/cv/`) and links it to the database.
+- **`/career-ops-apply`**: Formulates concise, personalized responses for application forms and updates status to `Applied`.
+- **`/career-ops-interview-prep`**: Generates recruiter interview questions and grounded STAR+R answers from your story bank.
+- **`/career-ops-archetypes`**: Synthesizes 5 strategic target personas from your master CV.
+- **`/career-ops-gupy`**: Generates optimized summaries and selects skill tags for Gupy ATS applications.
+- **`/career-ops-tracker`**: Summarizes pipeline metrics and recent applications.
+
+---
+
+## 🏗️ Technical Architecture & System Invariants
+
+### Decoupled SQLite Relational Engine (`data/career_ops.db`)
+
+The architecture strictly isolates deterministic CLI plumbing from qualitative AI agent inference:
+
+```text
+[External ATS APIs / MCP Servers]
+              │
+              ▼
+    Deterministic Fetcher (Python)
+              │
+              ▼
+  Embedded SQLite Storage (WAL Mode)
+  ├── vagas (Lightweight Metadata & Deduplication)
+  ├── vaga_descricoes (Isolated Full-Text Payloads & Hashing)
+  └── tracking_lifecycle (Candidate State, Scores, Deliverable Paths)
+              │
+       ┌──────┴──────┐
+       ▼             ▼
+   AI Harness   Deliverables (Filesystem)
+   (Skills)     ├── output/cv/ (Tailored 1-Page PDFs)
+                ├── output/reports/ (Evaluation Markdown)
+                └── workspace/output/ (HTML Dashboard & Exports)
+```
+
+### Core Invariants:
+1. **Zero LLM Dependencies in Python Core**: The CLI and Python packages execute with zero external LLM API calls or AI SDK dependencies. All LLM reasoning occurs inside the agent harness.
+2. **Context-Window Protection**: Database queries return compact records (<250 tokens per typical query). Full job descriptions are isolated in `vaga_descricoes` and only loaded when explicitly requested (`career-ops show <id> --full`).
+3. **Atomic Deduplication & Content Hashing**: `vagas.canonical_url` enforces `UNIQUE` database integrity. Duplicate URLs preserve the original ID while updating descriptions only if the SHA-256 `content_hash` changes.
+4. **Status Progression Hierarchy**: Lifecycle stages (`evaluated`: 2 < `applied`: 3 < `interview`: 4 < `offer`: 5) cannot be downgraded to a lower active stage, while terminal states (`rejected`: 1, `discarded`: 0, `skip`: 0) can be set from any stage.
+5. **Referential & Deliverable Integrity**: `career-ops verify` audits database integrity and confirms that all deliverable paths (`report_path`, `cv_pdf_path`) exist on the physical filesystem.
+
+### Environment Configuration
+
+The CLI automatically resolves the project root from the current working directory. If executing from outside the repository root, set `CAREER_OPS_ROOT`:
+
+```powershell
+# Windows (PowerShell)
+$env:CAREER_OPS_ROOT = "C:\path\to\career-ops-v2"
+career-ops verify
+```
+
+```bash
+# macOS / Linux (bash/zsh)
+export CAREER_OPS_ROOT="/path/to/career-ops-v2"
+career-ops verify
+```
+
+---
 
 ## 📂 Project Structure
 
 ```text
 career-ops-v2/
-├── .agents/skills/          # AI Agent skill workflows (SKILL.md)
-├── assets/                  # HTML resume templates and fonts
-├── config/                  # Profile, portal targets, and state definitions
+├── .agents/skills/          # Agent workflows and skill definitions (SKILL.md)
+├── assets/                  # HTML resume templates and self-hosted fonts
+│   ├── docs/                # Setup and architecture documentation
+│   └── templates/           # ATS resume HTML templates (ats_clean.html, cv-template.html)
+├── config/                  # Configuration files
+│   ├── portals.yml          # Tracked companies, ATS connectors, and portal targets
+│   ├── profile.example.yml  # Template for user profile configuration
+│   └── states.yml           # Canonical pipeline state definitions
 ├── data/                    # Local SQLite database (career_ops.db, git-ignored)
-├── docs/designs/            # Architecture and technical design documents
+├── docs/                    # Architecture RFCs, guides, and technical design documents
+│   └── designs/             # Technical specifications & design docs
+├── output/                  # Deliverables: generated resumes (cv/) and reports (reports/)
 ├── src/career_ops/          # Core Python package
-│   ├── fetcher/             # Deterministic ATS, MCP, GitHub, and HTML connectors
-│   ├── cli.py               # Click CLI entrypoint (init, intake, list, show, track, stats, ...)
-│   ├── config.py            # Root & database path resolution
-│   ├── context.py           # Click context and repository injection
-│   ├── cv.py                # Playwright PDF generator wrapper
-│   ├── dashboard.py         # Static HTML dashboard compiler
+│   ├── fetcher/             # Deterministic ATS, MCP, and GitHub ingestion connectors
+│   ├── render/              # Playwright ATS CV compiler with DOM overflow telemetry
+│   ├── schemas/             # Pydantic data schemas for evaluations and CV payloads
+│   ├── stories/             # STAR+R story bank parser and matcher
+│   ├── cli.py               # Click CLI entrypoint
+│   ├── config.py            # Path resolution and state management
 │   ├── db.py                # SQLite WAL connection manager and schema DDL
-│   ├── export.py            # CSV, JSON, and HTML exporter
-│   ├── fetch_cmd.py         # CLI wrapper for FetchOrchestrator
-│   ├── models.py            # Dataclasses (VagaInput, Vaga, VagaDescricao, TrackingLifecycle)
 │   ├── repository.py        # Transactional SQLite repository layer
-│   ├── sync_check.py        # Environment and setup coherence checks
-│   ├── utils.py             # URL, company, role normalization & SHA-256 content hashing
-│   └── verify.py            # SQLite integrity and artifact file verifier
-├── tests/                   # Pytest unit and CLI integration test suites
-├── workspace/               # Reports (reports/), PDFs & exports (output/), DB backups (backups/)
+│   └── verify.py            # Integrity and deliverable verifier
+├── tests/                   # Pytest unit and integration test suites
+├── workspace/               # Exports, static dashboard, and database backups
 └── pyproject.toml           # Package configuration and dependencies
 ```
 
-## System Verification
+---
+
+## 🧪 Verification & Testing
+
+Run the full automated test suite (126 unit and integration tests):
 
 ```bash
-# Run the full test suite
-uv run pytest tests/ -v
+# Run all tests
+python -m pytest
 
-# Run database, repository, and CLI test suites
-uv run pytest tests/test_db.py tests/test_repository.py tests/test_cli.py -v
+# Or with uv
+uv run pytest tests/ -v
 ```
 
 ---
-*Based on the original [career-ops](https://github.com/santifer/career-ops) project.*
+
+## 📄 License & Attribution
+
+This project is licensed under the [MIT License](LICENSE).
+
+Based on the original [career-ops](https://github.com/santifer/career-ops) concept by Santi Fer.

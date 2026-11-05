@@ -3,16 +3,16 @@
 ## Prerequisites
 
 - Python 3.11+
-- `uv`
-- Node.js 18+ for `generate-pdf.mjs`
+- `uv` (recommended) or standard `pip`
+- Node.js 18+ (for Playwright resume rendering)
 
 ## Quick Start
 
 ### 1. Clone and install
 
 ```bash
-git clone https://github.com/Rafacanedo/career-ops-python.git
-cd career-ops-python
+git clone https://github.com/Rafacanedo/career-ops-v2.git
+cd career-ops-v2
 uv sync
 ```
 
@@ -21,17 +21,20 @@ uv sync
 ```bash
 cp config/profile.example.yml config/profile.yml
 ```
+Edit `config/profile.yml` with your contact details, target roles, and narrative proof points.
 
-### 3. Add your personal content
+### 3. Add your personal CV
 
-- `content/cv.md`
-- `content/story-bank.md` if you use interview-prep workflows
-- `workspace/applications.md` as your application source of truth
-- `workspace/pipeline.md` as your pending URL inbox
+- Create `content/cv.md` with your canonical resume experience.
+- (Optional) Create `content/story-bank.md` with STAR+R stories for interview prep.
 
-### 4. Verify the setup
+### 4. Initialize database & verify setup
 
 ```bash
+# Initialize local SQLite database
+uv run career-ops init
+
+# Check setup consistency
 uv run career-ops sync-check
 uv run career-ops verify
 ```
@@ -39,14 +42,18 @@ uv run career-ops verify
 ### 5. Common commands
 
 ```bash
-uv run career-ops scan-csv
-uv run career-ops merge
-uv run career-ops export
+# Scan configured job portals for new openings
+uv run career-ops scan
+
+# Ingest a single job posting URL
+uv run career-ops intake <url>
+
+# List tracked opportunities
+uv run career-ops list
+
+# Generate an ATS-optimized PDF resume
+uv run career-ops cv --seq 001
+
+# Build interactive HTML dashboard
 uv run career-ops dashboard build
 ```
-
-## Notes
-
-- The active data contract uses `workspace/`, not `data/`.
-- The old Go TUI dashboard is not part of this repository.
-- `batch_cv.py` is deprecated and unsupported; use the CLI commands instead.
